@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::app::{App, Focus};
 use crate::dialogs::{
-    CiDlg, ConfirmDlg, ConfirmKind, ExportDlg, FccResult, Modal, MsgDlg,
+    CiDlg, ConfirmDlg, ConfirmKind, ExportDlg, Modal, MsgDlg,
     NetDlg, NdMode, ModePick, OperatorDlg, SessionDlg, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,

@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::app::{App, Focus};
 use crate::dialogs::{
-    CiDlg, ConfirmDlg, ExportDlg, Modal, ModePick, MsgDlg, NetDlg, NdMode,
+    CiDlg, ExportDlg, Modal, ModePick, NetDlg, NdMode,
     OperatorDlg, SessionDlg, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,
