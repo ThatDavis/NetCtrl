@@ -55,10 +55,12 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # MinGW linker needed for the GNU Windows target
-      - name: Install MinGW (Windows GNU)
+      # windows-latest already has MinGW; just point the GNU target at it
+      - name: Configure GNU linker (Windows)
         if: matrix.target == 'x86_64-pc-windows-gnu'
-        uses: blinemedical/setup-mingw@v1
+        run: |
+          echo '[target.x86_64-pc-windows-gnu]' >> $env:USERPROFILE/.cargo/config.toml
+          echo 'linker = "x86_64-w64-mingw32-gcc"' >> $env:USERPROFILE/.cargo/config.toml
 
       - name: Install cross
         if: matrix.cross
