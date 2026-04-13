@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'   # matches v1.0.0, v1.2.3-beta, etc.
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Build matrix ────────────────────────────────────────────────────────────
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # cross-compilation helper for Linux aarch64
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build (native)
+        if: ${{ !matrix.cross }}
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      # ── Package ──────────────────────────────────────────────────────────────
+      - name: Package (Unix)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          BIN="target/${{ matrix.target }}/release/netcontrol"
+          TAG="${GITHUB_REF_NAME}"
+          ARCHIVE="netcontrol-${TAG}-${{ matrix.target }}.tar.gz"
+          strip "${BIN}" 2>/dev/null || true
+          tar -czf "${ARCHIVE}" -C "$(dirname ${BIN})" "$(basename ${BIN})"
+          echo "ASSET=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $BIN  = "target\${{ matrix.target }}\release\netcontrol.exe"
+          $TAG  = "$env:GITHUB_REF_NAME"
+          $ARCHIVE = "netcontrol-${TAG}-${{ matrix.target }}.zip"
+          Compress-Archive -Path $BIN -DestinationPath $ARCHIVE
+          echo "ASSET=$ARCHIVE" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netcontrol-${{ matrix.target }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Create GitHub Release ───────────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for changelog generation
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Generate changelog
+        id: changelog
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREV=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1)
+          if [ -n "${PREV}" ]; then
+            NOTES=$(git log "${PREV}..${TAG}" --pretty=format:'- %s (%h)' --no-merges)
+          else
+            NOTES=$(git log --pretty=format:'- %s (%h)' --no-merges)
+          fi
+          # Write to file to handle multi-line safely
+          {
+            echo "## What's Changed"
+            echo ""
+            echo "${NOTES}"
+            echo ""
+            echo "## Downloads"
+            echo ""
+            echo "| Platform | Archive |"
+            echo "|----------|---------|"
+            echo "| Linux x86-64 | \`netcontrol-${TAG}-x86_64-unknown-linux-gnu.tar.gz\` |"
+            echo "| Linux arm64  | \`netcontrol-${TAG}-aarch64-unknown-linux-gnu.tar.gz\` |"
+            echo "| macOS x86-64 | \`netcontrol-${TAG}-x86_64-apple-darwin.tar.gz\` |"
+            echo "| macOS arm64  | \`netcontrol-${TAG}-aarch64-apple-darwin.tar.gz\` |"
+            echo "| Windows x64  | \`netcontrol-${TAG}-x86_64-pc-windows-msvc.zip\` |"
+          } > release_notes.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: NET CONTROL ${{ github.ref_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}  # v1.0.0-beta → pre-release
+          files: artifacts/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
