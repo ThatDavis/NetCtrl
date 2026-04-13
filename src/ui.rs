@@ -413,7 +413,7 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     // Centre the logo vertically; form hangs below it
     let logo_w = LOGO.iter().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
     let logo_h = LOGO.len() as u16;
-    let form_h = 8u16; // 6 inner lines + 2 border rows
+    let form_h = 9u16; // 7 inner lines + 2 border rows
     let form_w = 52u16;
 
     let logo_y = area.y + area.height.saturating_sub(logo_h) / 2;
@@ -450,6 +450,7 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     f.render_widget(blk, r);
 
     let lines: Vec<Line> = vec![
+        Line::from(Span::styled("Callsign:", t.cyan_s())),
         Line::from(Span::styled(
             format!(" {}{}", d.fields[OF_CALL], if d.focus==OF_CALL{"_"}else{""}),
             if d.focus==OF_CALL{t.sel()}else{t.normal()})),
