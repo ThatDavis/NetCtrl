@@ -330,6 +330,7 @@ const LOGO: &[&str] = &[
 #[derive(Debug,Clone,Serialize,Deserialize,Default)]
 struct CheckIn {
     id: String, callsign: String, name: String,
+    #[serde(default)] nickname: String,
     remarks: String, time: String,
 }
 
@@ -402,6 +403,7 @@ impl Net {
 struct KnownOp {
     callsign: String,
     name:     String,
+    #[serde(default)] nickname: String,
 }
 
 #[derive(Debug,Serialize,Deserialize,Default)]
@@ -414,15 +416,17 @@ struct AppData {
 }
 
 impl AppData {
-    /// Upsert a callsign/name pair into known_ops.
-    fn remember_op(&mut self, callsign: &str, name: &str) {
+    /// Upsert a callsign/name/nickname into known_ops.
+    fn remember_op(&mut self, callsign: &str, name: &str, nickname: &str) {
         let cs = callsign.trim().to_uppercase();
         let nm = name.trim().to_string();
+        let nk = nickname.trim().to_string();
         if cs.is_empty() { return; }
         if let Some(op) = self.known_ops.iter_mut().find(|o| o.callsign == cs) {
-            if !nm.is_empty() { op.name = nm; }
+            if !nm.is_empty() { op.name     = nm; }
+            if !nk.is_empty() { op.nickname = nk; }
         } else {
-            self.known_ops.push(KnownOp { callsign: cs, name: nm });
+            self.known_ops.push(KnownOp { callsign: cs, name: nm, nickname: nk });
         }
     }
     /// Return callsigns that start with the given prefix (case-insensitive).
@@ -547,6 +551,7 @@ enum FccResult { Found(String), NotFound, Error }
 struct CiDlg {
     callsign:     String,
     name:         String,
+    nickname:     String,
     remarks:      String,
     focus:        usize,
     /// Filtered completions for the current callsign prefix.
@@ -560,16 +565,22 @@ struct CiDlg {
 impl CiDlg {
     fn new() -> Self {
         Self {
-            callsign: String::new(), name: String::new(), remarks: String::new(),
+            callsign: String::new(), name: String::new(),
+            nickname: String::new(), remarks: String::new(),
             focus: 0,
             completions: vec![], comp_labels: vec![], comp_sel: None,
             fcc_rx: None, fcc_pending: false,
         }
     }
     fn cur_mut(&mut self) -> &mut String {
-        match self.focus { 0=>&mut self.callsign, 1=>&mut self.name, _=>&mut self.remarks }
+        match self.focus {
+            0 => &mut self.callsign,
+            1 => &mut self.name,
+            2 => &mut self.nickname,
+            _ => &mut self.remarks,
+        }
     }
-    fn max_len(&self) -> usize { match self.focus { 0=>12, 1=>30, _=>50 } }
+    fn max_len(&self) -> usize { match self.focus { 0=>12, 1=>30, 2=>30, _=>50 } }
     /// Update completions from known_ops given current callsign prefix.
     fn update_completions(&mut self, ops: &[KnownOp]) {
         let prefix = self.callsign.to_uppercase();
@@ -584,10 +595,12 @@ impl CiDlg {
             .take(8)
             .collect();
         self.completions = matches.iter().map(|o| o.callsign.clone()).collect();
-        self.comp_labels  = matches.iter().map(|o|
-            if o.name.is_empty() { o.callsign.clone() }
-            else { format!("{} — {}", o.callsign, o.name) }
-        ).collect();
+        self.comp_labels  = matches.iter().map(|o| {
+            let mut label = o.callsign.clone();
+            if !o.name.is_empty() { label.push_str(&format!(" — {}", o.name)); }
+            if !o.nickname.is_empty() { label.push_str(&format!(" ({})", o.nickname)); }
+            label
+        }).collect();
         self.comp_sel = if self.completions.is_empty() { None } else { Some(0) };
     }
     /// Apply the selected completion (fill callsign + name).
@@ -597,7 +610,8 @@ impl CiDlg {
         let cs = cs.clone();
         if let Some(op) = ops.iter().find(|o| o.callsign == cs) {
             self.callsign = op.callsign.clone();
-            if !op.name.is_empty() { self.name = op.name.clone(); }
+            if !op.name.is_empty()     { self.name     = op.name.clone(); }
+            if !op.nickname.is_empty() { self.nickname = op.nickname.clone(); }
         }
         self.completions.clear();
         self.comp_labels.clear();
@@ -672,6 +686,24 @@ impl ExportDlg {
 }
 
 #[derive(Debug)]
+struct SessionDlg {
+    fields:   [String; 2],   // 0 = date, 1 = net_time
+    focus:    usize,
+    ni:       usize,         // net index
+    si:       usize,         // session index
+}
+impl SessionDlg {
+    fn new(ni: usize, si: usize, date: &str, net_time: &str) -> Self {
+        Self {
+            fields: [date.to_string(), net_time.to_string()],
+            focus: 0, ni, si,
+        }
+    }
+    fn cur_mut(&mut self) -> &mut String { &mut self.fields[self.focus] }
+    fn max_len(&self) -> usize { if self.focus == 0 { 12 } else { 6 } }
+}
+
+#[derive(Debug)]
 enum Modal {
     None,
     Operator(OperatorDlg),
@@ -684,6 +716,7 @@ enum Modal {
     ThemePicker(ThemePickerDlg),
     QuitConfirm,
     Help,
+    Session(SessionDlg),
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
@@ -774,7 +807,7 @@ fn main() -> io::Result<()> {
     disable_raw_mode()?;
     execute!(term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
     term.show_cursor()?;
-    println!("73!");
+    println!("73 de NET CONTROL — 73!");
     res
 }
 
@@ -823,6 +856,7 @@ fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
                 Modal::ThemePicker(_) => on_theme_picker(app, key),
                 Modal::QuitConfirm    => { if on_quit_confirm(app, key) { return false; } }
                 Modal::Help           => { app.modal = Modal::None; }
+                Modal::Session(_)     => on_session_dlg(app, key),
             }
         }
     }
@@ -956,9 +990,17 @@ fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
             }
         }
 
-        // [e] — edit net (any focus)
-        KeyCode::Char('e') => {
-            if let Some(n) = app.net() { app.modal = Modal::Net(NetDlg::new_edit(n)); }
+        // [e] — edit net (Nets focus) or edit session date/time (Sessions/Log focus)
+        KeyCode::Char('e') => match app.focus {
+            Focus::Nets => {
+                if let Some(n) = app.net() { app.modal = Modal::Net(NetDlg::new_edit(n)); }
+            }
+            Focus::Sessions | Focus::Log => {
+                if let (Some(ni), Some(si)) = (app.ni(), app.si()) {
+                    let ses = &app.data.nets[ni].sessions[si];
+                    app.modal = Modal::Session(SessionDlg::new(ni, si, &ses.date, &ses.net_time));
+                }
+            }
         }
 
         // [c] — add check-in (sessions/log focus; auto-creates session if none)
@@ -1242,7 +1284,7 @@ fn on_ci_dlg(app: &mut App, key: KeyCode) {
             if d.comp_sel.is_some() && !d.completions.is_empty() {
                 let i = d.comp_sel.unwrap_or(0);
                 d.comp_sel = Some((i+1) % d.completions.len());
-            } else if d.focus < 2 {
+            } else if d.focus < 3 {
                 d.focus += 1;
             }
         }
@@ -1256,7 +1298,7 @@ fn on_ci_dlg(app: &mut App, key: KeyCode) {
                 d.apply_completion(&ops);
             } else {
                 let Modal::Ci(ref mut d) = app.modal else { return };
-                if d.focus < 2 {
+                if d.focus < 3 {
                     if d.focus == 0 && !d.fcc_pending {
                         d.start_fcc_lookup();
                     }
@@ -1316,8 +1358,9 @@ fn commit_ci(app: &mut App) {
     }
     let ci = CheckIn {
         id: new_id(), callsign: cs,
-        name: dlg.name.trim().into(),
-        remarks: dlg.remarks.trim().into(),
+        name:     dlg.name.trim().into(),
+        nickname: dlg.nickname.trim().into(),
+        remarks:  dlg.remarks.trim().into(),
         time: utc_now(),
     };
     if let Some(ses) = app.active_session_mut() {
@@ -1326,11 +1369,65 @@ fn commit_ci(app: &mut App) {
         app.log_ls.select(Some(last));
     }
     // Remember this callsign/name pair
-    let (cs2, nm2) = {
+    let (cs2, nm2, nk2) = {
         let Modal::Ci(ref d) = app.modal else { unreachable!() };
-        (d.callsign.clone(), d.name.clone())
+        (d.callsign.clone(), d.name.clone(), d.nickname.clone())
     };
-    app.data.remember_op(&cs2, &nm2);
+    app.data.remember_op(&cs2, &nm2, &nk2);
+    save_data(&app.data);
+    app.modal = Modal::None;
+}
+
+// ── Session date/time edit dialog ────────────────────────────────────────────
+fn on_session_dlg(app: &mut App, key: KeyCode) {
+    if !matches!(app.modal, Modal::Session(_)) { return; }
+    match key {
+        KeyCode::Esc => { app.modal = Modal::None; }
+
+        KeyCode::Enter | KeyCode::Down => {
+            let Modal::Session(ref mut d) = app.modal else { return };
+            if d.focus == 0 { d.focus = 1; }
+            else { commit_session_dlg(app); }
+        }
+
+        KeyCode::Up => {
+            let Modal::Session(ref mut d) = app.modal else { return };
+            if d.focus > 0 { d.focus -= 1; }
+        }
+
+        KeyCode::Backspace => {
+            let Modal::Session(ref mut d) = app.modal else { return };
+            d.cur_mut().pop();
+        }
+
+        KeyCode::Delete => {
+            let Modal::Session(ref mut d) = app.modal else { return };
+            d.cur_mut().clear();
+        }
+
+        KeyCode::Char(c) => {
+            let Modal::Session(ref mut d) = app.modal else { return };
+            let max = d.max_len();
+            if d.cur_mut().len() < max { d.cur_mut().push(c); }
+        }
+
+        _ => {}
+    }
+}
+
+fn commit_session_dlg(app: &mut App) {
+    let Modal::Session(ref d) = app.modal else { return };
+    let date     = d.fields[0].trim().to_string();
+    let net_time = d.fields[1].trim().to_string();
+    if date.is_empty() {
+        if let Modal::Session(ref mut d) = app.modal { d.focus = 0; }
+        return;
+    }
+    let (ni, si) = (d.ni, d.si);
+    if let Some(ses) = app.data.nets.get_mut(ni).and_then(|n| n.sessions.get_mut(si)) {
+        ses.date     = date;
+        ses.net_time = net_time;
+    }
     save_data(&app.data);
     app.modal = Modal::None;
 }
@@ -1515,16 +1612,20 @@ fn commit_export(app: &mut App) {
     }
     ls.push(format!("  Total  : {} check-ins", ses.checkins.len()));
     ls.push("=".repeat(60));
-    ls.push(format!("{:>3}  {:<7} {:<12} {:<22} REMARKS",
-        "#", "TIME", "CALLSIGN", "NAME"));
-    ls.push("-".repeat(70));
+    ls.push(format!("{:>3}  {:<7} {:<12} {:<26} REMARKS",
+        "#", "TIME", "CALLSIGN", "NAME/NICK"));
+    ls.push("-".repeat(74));
     for (i, ci) in ses.checkins.iter().enumerate() {
-        ls.push(format!("{:>3}  {:<7} {:<12} {:<22} {}",
-            i + 1, ci.time, ci.callsign,
-            if ci.name.is_empty() { "--" } else { &ci.name },
-            ci.remarks));
+        let nm_col = match (ci.name.is_empty(), ci.nickname.is_empty()) {
+            (true,  true)  => "--".to_string(),
+            (false, true)  => ci.name.clone(),
+            (true,  false) => format!("({})", ci.nickname),
+            (false, false) => format!("{} ({})", ci.name, ci.nickname),
+        };
+        ls.push(format!("{:>3}  {:<7} {:<12} {:<26} {}",
+            i + 1, ci.time, ci.callsign, nm_col, ci.remarks));
     }
-    ls.push("-".repeat(70));
+    ls.push("-".repeat(74));
     ls.push(format!("Exported: {}",
         Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
     let content = ls.join("\n") + "\n";
@@ -1687,9 +1788,9 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     }
     let is_dig  = app.net().map_or(false,|n|n.digital);
     let has_club= app.net().map_or(false,|n|!n.club.is_empty());
-    // info height: base 4 rows + 1 if digital + 1 if club + 2 (borders)
-    let info_h = 4u16
-        + if is_dig   {1} else {0}
+    // info height: 5 content rows (freq, pl, mode/voice, name) + 1 if club + 2 (borders)
+    // digital MODE row replaces VOICE NET row — same count either way
+    let info_h = 5u16
         + if has_club {1} else {0}
         + 2;
     // Split: info bar | sessions list | log (log only visible when Focus::Log)
@@ -1826,11 +1927,11 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
 
     let hdr = Rect{y:inner.y,height:1,..inner};
     f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(format!("{:>3} ","#"),        t.bold()),
-        Span::styled(format!("{:<7}","TIME"),      t.bold()),
-        Span::styled(format!("{:<13}","CALLSIGN"), t.bold()),
-        Span::styled(format!("{:<20}","NAME"),     t.bold()),
-        Span::styled("REMARKS",                    t.bold()),
+        Span::styled(format!("{:>3} ","#"),          t.bold()),
+        Span::styled(format!("{:<7}","TIME"),        t.bold()),
+        Span::styled(format!("{:<13}","CALLSIGN"),   t.bold()),
+        Span::styled(format!("{:<22}","NAME/NICK"),  t.bold()),
+        Span::styled("REMARKS",                      t.bold()),
     ])), hdr);
     f.render_widget(Block::default().borders(Borders::BOTTOM).border_style(t.border()),
         Rect{y:inner.y+1,height:1,..inner});
@@ -1856,14 +1957,19 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
 
     let rw = list_area.width as usize;
     let items: Vec<ListItem> = checkins.iter().enumerate().map(|(i,ci)|{
-        let rem_w = rw.saturating_sub(3+1+7+13+20);
+        let rem_w = rw.saturating_sub(3+1+7+13+22);
         let rem = &ci.remarks[..ci.remarks.len().min(rem_w)];
         let nm  = if ci.name.is_empty(){"—"}else{&ci.name};
+        let nm_col = if !ci.nickname.is_empty() {
+            format!("{} ({})", nm, ci.nickname)
+        } else {
+            nm.to_string()
+        };
         ListItem::new(Line::from(vec![
             Span::styled(format!("{:>3} ",i+1),        t.dim()),
             Span::styled(format!("{:<7}",ci.time),     t.time_s()),
             Span::styled(format!("{:<13}",ci.callsign),t.call()),
-            Span::styled(format!("{:<20}",nm),         t.normal()),
+            Span::styled(format!("{:<22}",nm_col),     t.normal()),
             Span::styled(rem.to_string(),               t.dim()),
         ]))
     }).collect();
@@ -1901,6 +2007,7 @@ fn draw_modal(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         Modal::ThemePicker(d) => draw_theme_picker(f, area, d, t),
         Modal::QuitConfirm    => draw_quit_confirm(f, area, t),
         Modal::Help           => draw_help(f, area, t),
+        Modal::Session(d)     => draw_session_dlg(f, area, d, t),
     }
 }
 
@@ -2080,7 +2187,7 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
 fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
     let has_comp = !d.comp_labels.is_empty();
     let comp_h   = if has_comp { d.comp_labels.len().min(6) as u16 + 2 } else { 0 };
-    let dh = 18u16 + comp_h;
+    let dh = 21u16 + comp_h;
     let r  = centered(62, dh, area);
     f.render_widget(Clear, r);
 
@@ -2092,8 +2199,8 @@ fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
-    let labels = ["Callsign","Name","Remarks"];
-    let vals: [&str;3] = [&d.callsign, &d.name, &d.remarks];
+    let labels = ["Callsign","Name","Nickname","Remarks"];
+    let vals: [&str;4] = [&d.callsign, &d.name, &d.nickname, &d.remarks];
     let mut lines: Vec<Line> = vec![Line::from("")];
 
     for (i, (lbl, val)) in labels.iter().zip(vals.iter()).enumerate() {
@@ -2238,6 +2345,32 @@ fn draw_theme_picker(f: &mut Frame, area: Rect, d: &ThemePickerDlg, t: &Theme) {
         "[↑↓] scroll  [ENTER] apply  [ESC] cancel", t.dim())), hint_area);
 }
 
+fn draw_session_dlg(f: &mut Frame, area: Rect, d: &SessionDlg, t: &Theme) {
+    let r = centered(48, 12, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+        .title(Span::styled(" EDIT SESSION ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+
+    let labels = ["Date (YYYY-MM-DD)", "Time (HH:MM)"];
+    let mut lines: Vec<Line> = vec![Line::from("")];
+    for (i, lbl) in labels.iter().enumerate() {
+        lines.push(Line::from(Span::styled(format!("{}:", lbl), t.cyan_s())));
+        let cur = if d.focus == i { "_" } else { "" };
+        lines.push(Line::from(Span::styled(
+            format!(" {}{}", d.fields[i], cur),
+            if d.focus == i { t.sel() } else { t.normal() },
+        )));
+        lines.push(Line::from(""));
+    }
+    lines.push(Line::from(Span::styled(
+        "[↑↓/ENTER] navigate  [ENTER] confirm  [ESC] cancel", t.dim())));
+    f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
+}
+
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
     let dw = 62u16.min(area.width);
     let dh = 36u16.min(area.height);
@@ -2274,6 +2407,7 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
         blank(),
         section("SESSIONS"),
         entry("n",               "New session for today"),
+        entry("e",               "Edit session date / time"),
         entry("d",               "Delete selected session"),
         entry("Ctrl+↑ / Ctrl+↓", "Resize sessions pane"),
         blank(),
