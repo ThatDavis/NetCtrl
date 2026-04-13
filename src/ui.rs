@@ -124,7 +124,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
         let inner = blk.inner(area);
         f.render_widget(blk, area);
         // Show logo centred in the empty panel
-        let logo_w = LOGO.iter().map(|l| l.len()).max().unwrap_or(0) as u16;
+        let logo_w = LOGO.iter().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
         let logo_h = LOGO.len() as u16;
         if inner.width >= logo_w && inner.height >= logo_h + 3 {
             let lx = inner.x + inner.width.saturating_sub(logo_w) / 2;
@@ -161,11 +161,12 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
         return;
     }
     let _is_dig = app.net().map_or(false,|n|n.digital);
-    let has_club= app.net().map_or(false,|n|!n.club.is_empty());
+    let _has_club= app.net().map_or(false,|n|!n.club.is_empty());
     // info height: 5 content rows (freq, pl, mode/voice, name) + 1 if club + 2 (borders)
     // digital MODE row replaces VOICE NET row — same count either way
     let info_h = 5u16
-        + if has_club {1} else {0}
+    // might not need this logic with some recent chages. Let's see what happens without it.
+    //    + if has_club {1} else {0}
         + 2;
     // Split: info bar | sessions list | log (log only visible when Focus::Log)
     let show_log = app.focus == Focus::Log;
@@ -409,18 +410,20 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     f.render_widget(Clear, area);
     f.render_widget(Block::default().style(Style::default().bg(t.bg())), area);
 
-    // Logo — centred horizontally, near the top
-    let logo_w = LOGO.iter().map(|l| l.len()).max().unwrap_or(0) as u16;
+    // Centre the logo vertically; form hangs below it
+    let logo_w = LOGO.iter().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
     let logo_h = LOGO.len() as u16;
+    let form_h = 8u16; // 6 inner lines + 2 border rows
+    let form_w = 52u16;
+
+    let logo_y = area.y + area.height.saturating_sub(logo_h) / 2;
     let logo_x = area.x + area.width.saturating_sub(logo_w) / 2;
-    let logo_y = area.y + 1;
     for (i, line) in LOGO.iter().enumerate() {
         let row = logo_y + i as u16;
         if row >= area.y + area.height { break; }
         let color = match i {
-            0..=5  => t.amber_s(),  // NET CTRL block — peach
-            7..=12 => t.bold(), // HAM RAD block — lavender
-            14     => t.dim(),  // tagline — overlay
+            0..=5  => t.amber_s(),
+            7..=12 => t.bold(),
             _      => t.dim(),
         };
         f.render_widget(
@@ -429,15 +432,14 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         );
     }
 
-    // Form box below logo
+    // Form box one row below logo
     let form_y = logo_y + logo_h + 1;
-    let form_h = 12u16;
-    let form_w = 52u16;
-    let r = centered(form_w, form_h, Rect {
+    let r = Rect {
+        x: area.x + area.width.saturating_sub(form_w) / 2,
         y: form_y,
-        height: area.height.saturating_sub(form_y - area.y),
-        ..area
-    });
+        width: form_w.min(area.width),
+        height: form_h,
+    };
     if r.height < 4 { return; }
     f.render_widget(Clear, r);
     let blk = Block::default()

@@ -14,29 +14,35 @@ use crate::theme::all_themes;
 
 // ── Input dispatch ────────────────────────────────────────────────────────────
 pub fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
+    // Text-input modals receive every character, including 'q' — dispatch first.
+    match &app.modal {
+        Modal::Operator(_) => { on_operator_dlg(app, key); return true; }
+        Modal::Net(_)      => { on_net_dlg(app, key);      return true; }
+        Modal::Ci(_)       => { on_ci_dlg(app, key);       return true; }
+        Modal::Export(_)   => { on_export_dlg(app, key);   return true; }
+        Modal::Session(_)  => { on_session_dlg(app, key);  return true; }
+        _ => {}
+    }
+
+    // For all non-text-input states 'q'/'Q' is the quit shortcut.
     match key {
         KeyCode::Char('q') | KeyCode::Char('Q') => {
             match &app.modal {
-                Modal::None => { app.modal = Modal::QuitConfirm; }
+                Modal::None        => { app.modal = Modal::QuitConfirm; }
                 Modal::QuitConfirm => return false,
-                Modal::Operator(d) if d.required => { app.modal = Modal::QuitConfirm; }
-                _ => { app.modal = Modal::None; }
+                _                  => { app.modal = Modal::None; }
             }
         }
         _ => {
             match &app.modal {
-                Modal::None        => { if !on_main(app, key, mods) { return false; } }
-                Modal::Operator(_) => on_operator_dlg(app, key),
-                Modal::Net(_)      => on_net_dlg(app, key),
-                Modal::Ci(_)       => on_ci_dlg(app, key),
-                Modal::Picker{..}  => on_picker(app, key),
-                Modal::Confirm(_)  => on_confirm(app, key),
+                Modal::None           => { if !on_main(app, key, mods) { return false; } }
+                Modal::Picker{..}     => on_picker(app, key),
+                Modal::Confirm(_)     => on_confirm(app, key),
                 Modal::Msg(_)         => { app.modal = Modal::None; }
-                Modal::Export(_)      => on_export_dlg(app, key),
                 Modal::ThemePicker(_) => on_theme_picker(app, key),
                 Modal::QuitConfirm    => { if on_quit_confirm(app, key) { return false; } }
                 Modal::Help           => { app.modal = Modal::None; }
-                Modal::Session(_)     => on_session_dlg(app, key),
+                _                     => {}
             }
         }
     }
