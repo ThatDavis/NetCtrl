@@ -1,7 +1,7 @@
 [package]
 name        = "netcontrol"
 version     = "1.0.1"
-edition     = "2026"
+edition     = "2024"
 description = "Terminal TUI for logging amateur radio net check-ins"
 authors     = ["Claude + KE9DKR"]
 license     = "MIT"
