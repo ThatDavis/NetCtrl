@@ -10,7 +10,12 @@
 //   x        Export log     p  Edit operator profile
 //   q        Quit
 
-use std::{io, path::PathBuf, time::{Duration, Instant}};
+use std::{
+    io,
+    path::PathBuf,
+    sync::mpsc,
+    time::{Duration, Instant},
+};
 use chrono::Utc;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
@@ -62,8 +67,8 @@ fn parse_hex_color(h: &str) -> Color {
     if h.len() == 6 {
         if let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&h[0..2], 16),
-            u8::from_str_radix(&h[2..4], 16),
-            u8::from_str_radix(&h[4..6], 16),
+                                        u8::from_str_radix(&h[2..4], 16),
+                                        u8::from_str_radix(&h[4..6], 16),
         ) {
             return Color::Rgb(r, g, b);
         }
@@ -249,9 +254,9 @@ fn builtin_themes() -> Vec<Theme> {
 fn load_theme_from_toml(path: &std::path::Path) -> Option<Theme> {
     let content = std::fs::read_to_string(path).ok()?;
     let mut name = path.file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("custom")
-        .to_string();
+    .and_then(|s| s.to_str())
+    .unwrap_or("custom")
+    .to_string();
     let mut slots: Vec<String> = vec![String::new(); 16];
     for line in content.lines() {
         let line = line.trim();
@@ -262,25 +267,25 @@ fn load_theme_from_toml(path: &std::path::Path) -> Option<Theme> {
             }
         }
         for (i, key) in ["base00","base01","base02","base03","base04","base05",
-                          "base06","base07","base08","base09","base0a","base0b",
-                          "base0c","base0d","base0e","base0f"].iter().enumerate() {
-            if line.to_lowercase().starts_with(key) {
-                if let Some(val) = line.splitn(2, '=').nth(1) {
-                    let v = val.trim().trim_matches('"').trim_matches('\'').to_string();
-                    if !v.is_empty() && slots[i].is_empty() { slots[i] = v; }
+            "base06","base07","base08","base09","base0a","base0b",
+            "base0c","base0d","base0e","base0f"].iter().enumerate() {
+                if line.to_lowercase().starts_with(key) {
+                    if let Some(val) = line.splitn(2, '=').nth(1) {
+                        let v = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                        if !v.is_empty() && slots[i].is_empty() { slots[i] = v; }
+                    }
                 }
             }
-        }
     }
     // Require at least base00 and base05
     if slots[0].is_empty() || slots[5].is_empty() { return None; }
     let p = |i: usize| parse_hex_color(if slots[i].is_empty() { "#000000" } else { &slots[i] });
     Some(Theme {
         name,
-        base00: p(0),  base01: p(1),  base02: p(2),  base03: p(3),
-        base04: p(4),  base05: p(5),  base06: p(6),  base07: p(7),
-        base08: p(8),  base09: p(9),  base0a: p(10), base0b: p(11),
-        base0c: p(12), base0d: p(13), base0e: p(14), base0f: p(15),
+         base00: p(0),  base01: p(1),  base02: p(2),  base03: p(3),
+         base04: p(4),  base05: p(5),  base06: p(6),  base07: p(7),
+         base08: p(8),  base09: p(9),  base0a: p(10), base0b: p(11),
+         base0c: p(12), base0d: p(13), base0e: p(14), base0f: p(15),
     })
 }
 
@@ -291,10 +296,10 @@ fn all_themes() -> Vec<Theme> {
     let theme_dir = home_dir().join(".config").join("netcontrol").join("themes");
     if let Ok(rd) = std::fs::read_dir(&theme_dir) {
         let mut extras: Vec<Theme> = rd
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |x| x == "toml"))
-            .filter_map(|e| load_theme_from_toml(&e.path()))
-            .collect();
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |x| x == "toml"))
+        .filter_map(|e| load_theme_from_toml(&e.path()))
+        .collect();
         extras.sort_by(|a,b| a.name.cmp(&b.name));
         themes.extend(extras);
     }
@@ -304,28 +309,21 @@ fn all_themes() -> Vec<Theme> {
 // ── Digital modes ─────────────────────────────────────────────────────────────
 const DIGITAL_MODES: &[&str] = &[
     "FT8","FT4","JS8Call","Winlink","APRS","RTTY",
-    "PSK31","OLIVIA","VARA HF","VARA FM","D-STAR",
-    "DMR","System Fusion / YSF","P25","NXDN","SSTV",
-    "WSPR","MSK144","Q65","OTHER",
+"PSK31","OLIVIA","VARA HF","VARA FM","D-STAR",
+"DMR","System Fusion / YSF","P25","NXDN","SSTV",
+"WSPR","MSK144","Q65","OTHER",
 ];
 
 // ── ASCII art logo ───────────────────────────────────────────────────────────
 const LOGO: &[&str] = &[
     r" ███╗   ██╗███████╗████████╗     ██████╗████████╗██████╗ ██╗     ",
-    r" ████╗  ██║██╔════╝╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██║     ",
-    r" ██╔██╗ ██║█████╗     ██║       ██║        ██║   ██████╔╝██║     ",
-    r" ██║╚██╗██║██╔══╝     ██║       ██║        ██║   ██╔══██╗██║     ",
-    r" ██║ ╚████║███████╗   ██║       ╚██████╗   ██║   ██║  ██║███████╗",
-    r" ╚═╝  ╚═══╝╚══════╝   ╚═╝        ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝",
-    r"",
-    r"         ██╗  ██╗ █████╗ ███╗   ███╗    ██████╗  █████╗ ██████╗  ",
-    r"         ██║  ██║██╔══██╗████╗ ████║    ██╔══██╗██╔══██╗██╔══██╗ ",
-    r"         ███████║███████║██╔████╔██║    ██████╔╝███████║██║  ██║ ",
-    r"         ██╔══██║██╔══██║██║╚██╔╝██║    ██╔══██╗██╔══██║██║  ██║ ",
-    r"         ██║  ██║██║  ██║██║ ╚═╝ ██║    ██║  ██║██║  ██║██████╔╝ ",
-    r"         ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝    ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ",
-    r"",
-    r"              Amateur Radio Net Check-in Logger  ◈  v1.0          ",
+r" ████╗  ██║██╔════╝╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██║     ",
+r" ██╔██╗ ██║█████╗     ██║       ██║        ██║   ██████╔╝██║     ",
+r" ██║╚██╗██║██╔══╝     ██║       ██║        ██║   ██╔══██╗██║     ",
+r" ██║ ╚████║███████╗   ██║       ╚██████╗   ██║   ██║  ██║███████╗",
+r" ╚═╝  ╚═══╝╚══════╝   ╚═╝        ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝",
+r"",
+r"              Amateur Radio Net Check-in Logger  ◈  v1.0          ",
 ];
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -335,17 +333,75 @@ struct CheckIn {
     remarks: String, time: String,
 }
 
+/// A single dated occurrence of a net.
+#[derive(Debug,Clone,Serialize,Deserialize,Default)]
+struct Session {
+    id:       String,
+    date:     String,
+    net_time: String,
+    #[serde(default)] checkins: Vec<CheckIn>,
+}
+
+impl Session {
+    fn new_today() -> Self {
+        Session {
+            id:       new_id(),
+            date:     chrono::Local::now().format("%Y-%m-%d").to_string(),
+            net_time: chrono::Local::now().format("%H:%M").to_string(),
+            checkins: vec![],
+        }
+    }
+    fn label(&self) -> String {
+        let cnt = self.checkins.len();
+        format!("{} {:>5}  ({} check-in{})", self.date, self.net_time, cnt, if cnt==1{""} else {"s"})
+    }
+}
+
 #[derive(Debug,Clone,Serialize,Deserialize,Default)]
 struct Net {
     id: String, name: String,
     #[serde(default)] club: String,
     freq: String, offset: String, pl: String,
-    date: String,
-    #[serde(rename="time")] net_time: String,
+    // Legacy flat fields kept for migration; new data uses sessions vec.
+    #[serde(default)] date: String,
+    #[serde(default, rename="time")] net_time: String,
     #[serde(default)] digital: bool,
     #[serde(default)] mode: String,
     #[serde(default)] mode_notes: String,
+    // Legacy flat check-ins; migrated to sessions on load.
     #[serde(default)] checkins: Vec<CheckIn>,
+    #[serde(default)] sessions: Vec<Session>,
+}
+
+impl Net {
+    /// Total check-ins across all sessions.
+    fn total_checkins(&self) -> usize {
+        self.sessions.iter().map(|s| s.checkins.len()).sum()
+    }
+    /// Migrate legacy flat checkins into a single session if needed.
+    fn migrate(&mut self) {
+        if !self.checkins.is_empty() && self.sessions.is_empty() {
+            let date = if self.date.is_empty() {
+                chrono::Local::now().format("%Y-%m-%d").to_string()
+            } else { self.date.clone() };
+            let net_time = if self.net_time.is_empty() {
+                chrono::Local::now().format("%H:%M").to_string()
+            } else { self.net_time.clone() };
+            self.sessions.push(Session {
+                id:       new_id(),
+                               date,
+                               net_time,
+                               checkins: std::mem::take(&mut self.checkins),
+            });
+        }
+    }
+}
+
+/// A remembered callsign/name pair, built up from check-in history.
+#[derive(Debug,Clone,Serialize,Deserialize,Default)]
+struct KnownOp {
+    callsign: String,
+    name:     String,
 }
 
 #[derive(Debug,Serialize,Deserialize,Default)]
@@ -353,7 +409,29 @@ struct AppData {
     #[serde(default)] operator_name: String,
     #[serde(default)] operator_call: String,
     #[serde(default)] theme_name:    String,
+    #[serde(default)] known_ops:     Vec<KnownOp>,
     nets: Vec<Net>,
+}
+
+impl AppData {
+    /// Upsert a callsign/name pair into known_ops.
+    fn remember_op(&mut self, callsign: &str, name: &str) {
+        let cs = callsign.trim().to_uppercase();
+        let nm = name.trim().to_string();
+        if cs.is_empty() { return; }
+        if let Some(op) = self.known_ops.iter_mut().find(|o| o.callsign == cs) {
+            if !nm.is_empty() { op.name = nm; }
+        } else {
+            self.known_ops.push(KnownOp { callsign: cs, name: nm });
+        }
+    }
+    /// Return callsigns that start with the given prefix (case-insensitive).
+    fn completions(&self, prefix: &str) -> Vec<&KnownOp> {
+        let p = prefix.to_uppercase();
+        self.known_ops.iter()
+        .filter(|o| o.callsign.starts_with(&p))
+        .collect()
+    }
 }
 
 fn home_dir() -> PathBuf {
@@ -364,7 +442,10 @@ fn load_data() -> AppData {
     let p = data_path();
     if p.exists() {
         if let Ok(s) = std::fs::read_to_string(&p) {
-            if let Ok(d) = serde_json::from_str(&s) { return d; }
+            if let Ok(mut d) = serde_json::from_str::<AppData>(&s) {
+                for net in &mut d.nets { net.migrate(); }
+                return d;
+            }
         }
     }
     AppData::default()
@@ -407,7 +488,7 @@ impl NetDlg {
         Self {
             mode: NdMode::Add,
             fields: [String::new(), String::new(), String::new(),
-                     "+0.600".into(), "NONE".into(), today, now],
+            "+0.600".into(), "NONE".into(), today, now],
             digital: false, mode_idx: 0, notes: String::new(),
             focus: NF_NAME, edit_id: None,
         }
@@ -417,7 +498,7 @@ impl NetDlg {
         Self {
             mode: NdMode::Edit,
             fields: [n.name.clone(), n.club.clone(), n.freq.clone(),
-                     n.offset.clone(), n.pl.clone(), n.date.clone(), n.net_time.clone()],
+            n.offset.clone(), n.pl.clone(), n.date.clone(), n.net_time.clone()],
             digital: n.digital, mode_idx: mi, notes: n.mode_notes.clone(),
             focus: NF_NAME, edit_id: Some(n.id.clone()),
         }
@@ -460,21 +541,113 @@ impl OperatorDlg {
     fn max_len(&self) -> usize { if self.focus==OF_CALL { 12 } else { 40 } }
 }
 
+/// Result of an async FCC lookup.
 #[derive(Debug)]
-struct CiDlg { callsign:String, name:String, remarks:String, focus:usize }
+enum FccResult { Found(String), NotFound, Error }
+
+#[derive(Debug)]
+struct CiDlg {
+    callsign:     String,
+    name:         String,
+    remarks:      String,
+    focus:        usize,
+    /// Filtered completions for the current callsign prefix.
+    completions:  Vec<String>,   // (callsign, display label)
+    comp_labels:  Vec<String>,
+    comp_sel:     Option<usize>,
+    /// Channel for FCC lookup results.
+    fcc_rx:       Option<mpsc::Receiver<FccResult>>,
+    fcc_pending:  bool,
+}
 impl CiDlg {
-    fn new() -> Self { Self{callsign:String::new(),name:String::new(),remarks:String::new(),focus:0} }
+    fn new() -> Self {
+        Self {
+            callsign: String::new(), name: String::new(), remarks: String::new(),
+            focus: 0,
+            completions: vec![], comp_labels: vec![], comp_sel: None,
+            fcc_rx: None, fcc_pending: false,
+        }
+    }
     fn cur_mut(&mut self) -> &mut String {
         match self.focus { 0=>&mut self.callsign, 1=>&mut self.name, _=>&mut self.remarks }
     }
     fn max_len(&self) -> usize { match self.focus { 0=>12, 1=>30, _=>50 } }
+    /// Update completions from known_ops given current callsign prefix.
+    fn update_completions(&mut self, ops: &[KnownOp]) {
+        let prefix = self.callsign.to_uppercase();
+        if prefix.is_empty() {
+            self.completions.clear();
+            self.comp_labels.clear();
+            self.comp_sel = None;
+            return;
+        }
+        let matches: Vec<_> = ops.iter()
+        .filter(|o| o.callsign.starts_with(&prefix))
+        .take(8)
+        .collect();
+        self.completions = matches.iter().map(|o| o.callsign.clone()).collect();
+        self.comp_labels  = matches.iter().map(|o|
+        if o.name.is_empty() { o.callsign.clone() }
+        else { format!("{} — {}", o.callsign, o.name) }
+        ).collect();
+        self.comp_sel = if self.completions.is_empty() { None } else { Some(0) };
+    }
+    /// Apply the selected completion (fill callsign + name).
+    fn apply_completion(&mut self, ops: &[KnownOp]) {
+        let Some(idx) = self.comp_sel else { return };
+        let Some(cs) = self.completions.get(idx) else { return };
+        let cs = cs.clone();
+        if let Some(op) = ops.iter().find(|o| o.callsign == cs) {
+            self.callsign = op.callsign.clone();
+            if !op.name.is_empty() { self.name = op.name.clone(); }
+        }
+        self.completions.clear();
+        self.comp_labels.clear();
+        self.comp_sel = None;
+    }
+    /// Kick off a background FCC lookup for the current callsign.
+    fn start_fcc_lookup(&mut self) {
+        let cs = self.callsign.trim().to_uppercase();
+        if cs.is_empty() || cs.len() < 3 { return; }
+        let (tx, rx) = mpsc::channel();
+        self.fcc_rx      = Some(rx);
+        self.fcc_pending = true;
+        std::thread::spawn(move || {
+            // callook.info returns a flat JSON object for the callsign.
+            // Example: { "status": "VALID", "name": { "full": "HIRAM PERCY MAXIM" }, ... }
+            let url = format!("https://callook.info/{}/json", cs);
+            let result = (|| -> Option<String> {
+                let body = minreq::get(&url)
+                .with_timeout(5)
+                .send().ok()?;
+                let resp: serde_json::Value =
+                serde_json::from_str(body.as_str().ok()?).ok()?;
+                // callook.info: { "status": "VALID", "name": "HIRAM PERCY MAXIM", ... }
+                if resp.get("status")?.as_str()? != "VALID" { return None; }
+                let name = resp.get("name")?.as_str()?.trim().to_string();
+                if name.is_empty() { None } else { Some(name) }
+            })();
+            let _ = tx.send(match result {
+                Some(name) => FccResult::Found(name),
+                            None       => FccResult::NotFound,
+            });
+        });
+    }
+    /// Poll the FCC channel; return Some(result) if ready.
+    fn poll_fcc(&mut self) -> Option<FccResult> {
+        let rx = self.fcc_rx.as_ref()?;
+        match rx.try_recv() {
+            Ok(r)  => { self.fcc_pending = false; self.fcc_rx = None; Some(r) }
+            Err(_) => None,
+        }
+    }
 }
 
 #[derive(Debug)]
 struct ModePick { sel: usize, offset: usize }
 
 #[derive(Debug,PartialEq)]
-enum ConfirmKind { DelNet, DelCi }
+enum ConfirmKind { DelNet, DelSession, DelCi }
 #[derive(Debug)]
 struct ConfirmDlg { kind: ConfirmKind, msg: String }
 #[derive(Debug)]
@@ -511,23 +684,27 @@ enum Modal {
     Msg(MsgDlg),
     Export(ExportDlg),
     ThemePicker(ThemePickerDlg),
+    QuitConfirm,
+    Help,
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
 #[derive(Debug,Clone,Copy,PartialEq)]
-enum Focus { Nets, Log }
+enum Focus { Nets, Sessions, Log }
 
 struct App {
-    data:    AppData,
-    screen:  Screen,
-    focus:   Focus,
-    net_ls:  ListState,
-    log_ls:  ListState,
-    modal:   Modal,
-    tick:    Instant,
-    clock:   String,
-    panel_w: u16,
-    theme:   Theme,
+    data:       AppData,
+    screen:     Screen,
+    focus:      Focus,
+    net_ls:     ListState,
+    ses_ls:     ListState,   // session list (per net)
+    log_ls:     ListState,
+    modal:      Modal,
+    tick:       Instant,
+    clock:      String,
+    panel_w:    u16,
+    ses_pane_h: u16,   // height of sessions pane when log is visible; resizable Ctrl+↑/↓
+    theme:      Theme,
 }
 impl App {
     fn new() -> Self {
@@ -545,15 +722,16 @@ impl App {
         let theme = {
             let name = &data.theme_name;
             all_themes().into_iter()
-                .find(|t| &t.name == name)
-                .unwrap_or_else(theme_catppuccin_mocha)
+            .find(|t| &t.name == name)
+            .unwrap_or_else(theme_catppuccin_mocha)
         };
         Self {
             data, screen, focus: Focus::Nets,
-            net_ls, log_ls: ListState::default(),
+            net_ls, ses_ls: ListState::default(), log_ls: ListState::default(),
             modal, tick: Instant::now(),
             clock: Utc::now().format("%H:%M:%S UTC").to_string(),
             panel_w: 30,
+            ses_pane_h: 8,
             theme,
         }
     }
@@ -561,7 +739,18 @@ impl App {
     fn net(&self)       -> Option<&Net>      { self.net_ls.selected().and_then(|i| self.data.nets.get(i)) }
     fn net_mut(&mut self) -> Option<&mut Net> { self.net_ls.selected().and_then(|i| self.data.nets.get_mut(i)) }
     fn ni(&self) -> Option<usize> { self.net_ls.selected() }
+    fn si(&self) -> Option<usize> { self.ses_ls.selected() }
     fn ci(&self) -> Option<usize> { self.log_ls.selected() }
+    fn active_session(&self) -> Option<&Session> {
+        let ni = self.ni()?;
+        let si = self.si()?;
+        self.data.nets.get(ni)?.sessions.get(si)
+    }
+    fn active_session_mut(&mut self) -> Option<&mut Session> {
+        let ni = self.ni()?;
+        let si = self.si()?;
+        self.data.nets.get_mut(ni)?.sessions.get_mut(si)
+    }
     fn op_str(&self) -> String {
         let c = &self.data.operator_call;
         let n = &self.data.operator_name;
@@ -593,7 +782,7 @@ fn main() -> io::Result<()> {
 
 fn run_loop<B: ratatui::backend::Backend>(term: &mut Terminal<B>) -> io::Result<()> {
     let mut app = App::new();
-    let tick_rate = Duration::from_millis(500);
+    let tick_rate = Duration::from_millis(200);  // shorter for FCC polling
     loop {
         term.draw(|f| ui(f, &mut app))?;
         let timeout = tick_rate.checked_sub(app.tick.elapsed()).unwrap_or_default();
@@ -603,6 +792,12 @@ fn run_loop<B: ratatui::backend::Backend>(term: &mut Terminal<B>) -> io::Result<
             }
         }
         if app.tick.elapsed() >= tick_rate { app.tick(); app.tick = Instant::now(); }
+        // Poll for FCC lookup results while check-in dialog is open
+        if let Modal::Ci(ref mut d) = app.modal {
+            if let Some(FccResult::Found(name)) = d.poll_fcc() {
+                d.name = name;  // always fill; lookup result wins
+            }
+        }
     }
 }
 
@@ -611,8 +806,9 @@ fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
     match key {
         KeyCode::Char('q') | KeyCode::Char('Q') => {
             match &app.modal {
-                Modal::None => return false,
-                Modal::Operator(d) if d.required => return false, // q quits from startup too
+                Modal::None => { app.modal = Modal::QuitConfirm; }
+                Modal::QuitConfirm => return false,
+                Modal::Operator(d) if d.required => { app.modal = Modal::QuitConfirm; }
                 _ => { app.modal = Modal::None; }
             }
         }
@@ -627,6 +823,8 @@ fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
                 Modal::Msg(_)         => { app.modal = Modal::None; }
                 Modal::Export(_)      => on_export_dlg(app, key),
                 Modal::ThemePicker(_) => on_theme_picker(app, key),
+                Modal::QuitConfirm    => { if on_quit_confirm(app, key) { return false; } }
+                Modal::Help           => { app.modal = Modal::None; }
             }
         }
     }
@@ -636,9 +834,7 @@ fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
 fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
     match key {
         KeyCode::Char('q') | KeyCode::Char('Q') => return false,
-        KeyCode::Tab => {
-            app.focus = if app.focus==Focus::Nets { Focus::Log } else { Focus::Nets };
-        }
+
         // Ctrl+Left / Ctrl+Right — resize the nets panel (tmux-style)
         KeyCode::Left if mods.contains(KeyModifiers::CONTROL) => {
             if app.panel_w > 10 { app.panel_w -= 1; }
@@ -646,72 +842,173 @@ fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
         KeyCode::Right if mods.contains(KeyModifiers::CONTROL) => {
             if app.panel_w < 60 { app.panel_w += 1; }
         }
+        // Ctrl+Up / Ctrl+Down — resize the sessions pane height
+        KeyCode::Up if mods.contains(KeyModifiers::CONTROL) => {
+            if app.ses_pane_h > 3 { app.ses_pane_h -= 1; }
+        }
+        KeyCode::Down if mods.contains(KeyModifiers::CONTROL) => {
+            if app.ses_pane_h < 30 { app.ses_pane_h += 1; }
+        }
+
+        KeyCode::Tab => {
+            app.focus = match app.focus {
+                Focus::Nets     => Focus::Sessions,
+                Focus::Sessions => Focus::Log,
+                Focus::Log      => Focus::Nets,
+            };
+        }
+
+        // Esc navigates back through the focus hierarchy
+        KeyCode::Esc => {
+            match app.focus {
+                Focus::Log      => { app.focus = Focus::Sessions; }
+                Focus::Sessions => { app.focus = Focus::Nets; }
+                Focus::Nets     => {}
+            }
+        }
+
         KeyCode::Up => match app.focus {
             Focus::Nets => {
                 let i = app.net_ls.selected().unwrap_or(0);
                 app.net_ls.select(Some(i.saturating_sub(1)));
+                app.ses_ls.select(None);
                 app.log_ls.select(None);
             }
+            Focus::Sessions => {
+                let len = app.net().map_or(0, |n| n.sessions.len());
+                if len > 0 {
+                    let i = app.ses_ls.selected().unwrap_or(0);
+                    app.ses_ls.select(Some(i.saturating_sub(1)));
+                    app.log_ls.select(None);
+                }
+            }
             Focus::Log => {
-                if app.net().map_or(0,|n|n.checkins.len()) > 0 {
+                let len = app.active_session().map_or(0, |s| s.checkins.len());
+                if len > 0 {
                     let i = app.log_ls.selected().unwrap_or(0);
                     app.log_ls.select(Some(i.saturating_sub(1)));
                 }
             }
         }
+
         KeyCode::Down => match app.focus {
             Focus::Nets => {
                 let len = app.data.nets.len();
                 if len > 0 {
                     let i = app.net_ls.selected().unwrap_or(0);
                     app.net_ls.select(Some((i+1).min(len-1)));
+                    app.ses_ls.select(None);
+                    app.log_ls.select(None);
+                }
+            }
+            Focus::Sessions => {
+                let len = app.net().map_or(0, |n| n.sessions.len());
+                if len > 0 {
+                    let i = app.ses_ls.selected().unwrap_or(0);
+                    app.ses_ls.select(Some((i+1).min(len-1)));
                     app.log_ls.select(None);
                 }
             }
             Focus::Log => {
-                let len = app.net().map_or(0,|n|n.checkins.len());
+                let len = app.active_session().map_or(0, |s| s.checkins.len());
                 if len > 0 {
                     let i = app.log_ls.selected().unwrap_or(0);
                     app.log_ls.select(Some((i+1).min(len-1)));
                 }
             }
         }
-        KeyCode::Enter => {
-            if app.focus==Focus::Nets && !app.data.nets.is_empty() {
-                app.focus = Focus::Log;
-                if app.log_ls.selected().is_none() {
-                    let len = app.net().map_or(0,|n|n.checkins.len());
-                    if len>0 { app.log_ls.select(Some(0)); }
-                }
-            }
-        }
-        KeyCode::Char('n') => { app.modal = Modal::Net(NetDlg::new_add()); }
-        KeyCode::Char('e') => {
-            if let Some(n) = app.net() { app.modal = Modal::Net(NetDlg::new_edit(n)); }
-        }
-        KeyCode::Char('c') => {
-            if app.net().is_some() {
-                app.modal = Modal::Ci(CiDlg::new());
-                app.focus = Focus::Log;
-            }
-        }
-        KeyCode::Char('d') => match app.focus {
+
+        KeyCode::Enter => match app.focus {
             Focus::Nets => {
-                if let Some(n) = app.net() {
-                    let msg = format!("Delete net '{}'?", n.name);
-                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelNet,msg});
+                if !app.data.nets.is_empty() {
+                    app.focus = Focus::Sessions;
+                    if app.ses_ls.selected().is_none() {
+                        let len = app.net().map_or(0, |n| n.sessions.len());
+                        if len > 0 { app.ses_ls.select(Some(0)); }
+                    }
                 }
             }
-            Focus::Log => {
-                if let (Some(ni),Some(ci)) = (app.ni(),app.ci()) {
-                    if let Some(c) = app.data.nets[ni].checkins.get(ci) {
-                        let msg = format!("Remove {} from log?", c.callsign);
-                        app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelCi,msg});
+            Focus::Sessions => {
+                if app.ses_ls.selected().is_some() {
+                    app.focus = Focus::Log;
+                    if app.log_ls.selected().is_none() {
+                        let len = app.active_session().map_or(0, |s| s.checkins.len());
+                        if len > 0 { app.log_ls.select(Some(0)); }
+                    }
+                }
+            }
+            Focus::Log => {}
+        }
+
+        // [n] — add net (from Nets), or new session (from Sessions/Log)
+        KeyCode::Char('n') => match app.focus {
+            Focus::Nets => { app.modal = Modal::Net(NetDlg::new_add()); }
+            Focus::Sessions | Focus::Log => {
+                if app.net().is_some() {
+                    if let Some(ni) = app.ni() {
+                        let ses = Session::new_today();
+                        app.data.nets[ni].sessions.push(ses);
+                        let last = app.data.nets[ni].sessions.len() - 1;
+                        app.ses_ls.select(Some(last));
+                        app.log_ls.select(None);
+                        app.focus = Focus::Sessions;
+                        save_data(&app.data);
                     }
                 }
             }
         }
+
+        // [e] — edit net (any focus)
+        KeyCode::Char('e') => {
+            if let Some(n) = app.net() { app.modal = Modal::Net(NetDlg::new_edit(n)); }
+        }
+
+        // [c] — add check-in (sessions/log focus; auto-creates session if none)
+        KeyCode::Char('c') => {
+            if let Some(ni) = app.ni() {
+                // Ensure there's an active session to add to
+                if app.data.nets[ni].sessions.is_empty() {
+                    let ses = Session::new_today();
+                    app.data.nets[ni].sessions.push(ses);
+                    app.ses_ls.select(Some(0));
+                    save_data(&app.data);
+                }
+                if app.ses_ls.selected().is_none() {
+                    let last = app.data.nets[ni].sessions.len() - 1;
+                    app.ses_ls.select(Some(last));
+                }
+                app.modal = Modal::Ci(CiDlg::new());
+                app.focus = Focus::Log;
+            }
+        }
+
+        // [d] — delete
+        KeyCode::Char('d') => match app.focus {
+            Focus::Nets => {
+                if let Some(n) = app.net() {
+                    let msg = format!("Delete net '{}'?", n.name);
+                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelNet, msg});
+                }
+            }
+            Focus::Sessions => {
+                if let (Some(ni), Some(si)) = (app.ni(), app.si()) {
+                    let lbl = app.data.nets[ni].sessions[si].label();
+                    let msg = format!("Delete session {}?", lbl);
+                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelSession, msg});
+                }
+            }
+            Focus::Log => {
+                if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci()) {
+                    if let Some(c) = app.data.nets[ni].sessions[si].checkins.get(ci) {
+                        let msg = format!("Remove {} from log?", c.callsign);
+                        app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelCi, msg});
+                    }
+                }
+            }
+        }
+
         KeyCode::Char('x') => do_export(app),
+
         KeyCode::Char('p') | KeyCode::Char('P') => {
             let call = app.data.operator_call.clone();
             let name = app.data.operator_name.clone();
@@ -722,9 +1019,19 @@ fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
             let current = app.theme.name.clone();
             app.modal = Modal::ThemePicker(ThemePickerDlg::new(themes, &current));
         }
+        KeyCode::Char('?') => { app.modal = Modal::Help; }
         _ => {}
     }
     true
+}
+
+// ── Quit confirmation ────────────────────────────────────────────────────────
+fn on_quit_confirm(app: &mut App, key: KeyCode) -> bool {
+    match key {
+        KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => return true, // signal quit
+        _ => { app.modal = Modal::None; }
+    }
+    false
 }
 
 // ── Operator dialog ───────────────────────────────────────────────────────────
@@ -877,6 +1184,7 @@ fn commit_net(app: &mut App) {
         mode:       if dlg.digital { DIGITAL_MODES[dlg.mode_idx].into() } else { String::new() },
         mode_notes: dlg.notes.trim().to_string(),
         checkins:   vec![],
+        sessions:   vec![],
     };
     match dlg.mode {
         NdMode::Add => {
@@ -887,9 +1195,9 @@ fn commit_net(app: &mut App) {
         }
         NdMode::Edit => {
             if let Some(i) = app.ni() {
-                let old = app.data.nets[i].checkins.clone();
+                let old_sessions = app.data.nets[i].sessions.clone();
                 app.data.nets[i] = net;
-                app.data.nets[i].checkins = old;
+                app.data.nets[i].sessions = old_sessions;
             }
         }
     }
@@ -899,24 +1207,104 @@ fn commit_net(app: &mut App) {
 
 // ── Check-in dialog ───────────────────────────────────────────────────────────
 fn on_ci_dlg(app: &mut App, key: KeyCode) {
-    let Modal::Ci(ref mut dlg) = app.modal else { return };
+    if !matches!(app.modal, Modal::Ci(_)) { return; }
     match key {
         KeyCode::Esc => { app.modal = Modal::None; }
-        KeyCode::Enter | KeyCode::Down => {
-            if dlg.focus < 2 { dlg.focus += 1; }
-            else { commit_ci(app); }
-        }
-        KeyCode::Up => { let Modal::Ci(ref mut d)=app.modal else{return}; if d.focus>0{d.focus-=1;} }
-        KeyCode::Backspace => { let Modal::Ci(ref mut d)=app.modal else{return}; d.cur_mut().pop(); }
-        KeyCode::Delete    => { let Modal::Ci(ref mut d)=app.modal else{return}; d.cur_mut().clear(); }
-        KeyCode::Char(c) => {
-            let Modal::Ci(ref mut d)=app.modal else{return};
-            let max=d.max_len(); let f=d.focus;
-            if d.cur_mut().len()<max {
-                let ch=if f==0{c.to_ascii_uppercase()}else{c};
-                d.cur_mut().push(ch);
+
+        // Tab applies the selected completion or moves focus
+        KeyCode::Tab => {
+            let Modal::Ci(ref mut d) = app.modal else { return };
+            if d.comp_sel.is_some() {
+                let ops = app.data.known_ops.clone();
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                d.apply_completion(&ops);
+            } else if d.focus == 0 {
+                // Trigger FCC lookup when leaving callsign field via Tab
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                if !d.fcc_pending {
+                    d.start_fcc_lookup();
+                }
+                d.focus = 1;
             }
         }
+
+        // Up/Down navigate the completion list when it is visible
+        KeyCode::Up => {
+            let Modal::Ci(ref mut d) = app.modal else { return };
+            if d.comp_sel.is_some() && !d.completions.is_empty() {
+                let i = d.comp_sel.unwrap_or(0);
+                d.comp_sel = Some(if i == 0 { d.completions.len()-1 } else { i-1 });
+            } else if d.focus > 0 {
+                d.focus -= 1;
+            }
+        }
+
+        KeyCode::Down => {
+            let Modal::Ci(ref mut d) = app.modal else { return };
+            if d.comp_sel.is_some() && !d.completions.is_empty() {
+                let i = d.comp_sel.unwrap_or(0);
+                d.comp_sel = Some((i+1) % d.completions.len());
+            } else if d.focus < 2 {
+                d.focus += 1;
+            }
+        }
+
+        KeyCode::Enter => {
+            // If a completion is selected, apply it; otherwise advance/confirm
+            let has_comp = matches!(&app.modal, Modal::Ci(d) if d.comp_sel.is_some() && !d.completions.is_empty());
+            if has_comp {
+                let ops = app.data.known_ops.clone();
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                d.apply_completion(&ops);
+            } else {
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                if d.focus < 2 {
+                    if d.focus == 0 && !d.fcc_pending {
+                        d.start_fcc_lookup();
+                    }
+                    d.focus += 1;
+                } else {
+                    commit_ci(app);
+                }
+            }
+        }
+
+        KeyCode::Backspace => {
+            let Modal::Ci(ref mut d) = app.modal else { return };
+            d.cur_mut().pop();
+            if d.focus == 0 {
+                let ops = app.data.known_ops.clone();
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                d.update_completions(&ops);
+            }
+        }
+
+        KeyCode::Delete => {
+            let Modal::Ci(ref mut d) = app.modal else { return };
+            d.cur_mut().clear();
+            if d.focus == 0 {
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                d.completions.clear();
+                d.comp_labels.clear();
+                d.comp_sel = None;
+            }
+        }
+
+        KeyCode::Char(c) => {
+            let Modal::Ci(ref mut d) = app.modal else { return };
+            let max = d.max_len();
+            let f   = d.focus;
+            if d.cur_mut().len() < max {
+                let ch = if f == 0 { c.to_ascii_uppercase() } else { c };
+                d.cur_mut().push(ch);
+            }
+            if f == 0 {
+                let ops = app.data.known_ops.clone();
+                let Modal::Ci(ref mut d) = app.modal else { return };
+                d.update_completions(&ops);
+            }
+        }
+
         _ => {}
     }
 }
@@ -934,11 +1322,17 @@ fn commit_ci(app: &mut App) {
         remarks: dlg.remarks.trim().into(),
         time: utc_now(),
     };
-    if let Some(net) = app.net_mut() {
-        net.checkins.push(ci);
-        let last = net.checkins.len()-1;
+    if let Some(ses) = app.active_session_mut() {
+        ses.checkins.push(ci);
+        let last = ses.checkins.len()-1;
         app.log_ls.select(Some(last));
     }
+    // Remember this callsign/name pair
+    let (cs2, nm2) = {
+        let Modal::Ci(ref d) = app.modal else { unreachable!() };
+        (d.callsign.clone(), d.name.clone())
+    };
+    app.data.remember_op(&cs2, &nm2);
     save_data(&app.data);
     app.modal = Modal::None;
 }
@@ -990,16 +1384,26 @@ fn on_confirm(app: &mut App, key: KeyCode) {
                     if let Some(i) = app.ni() {
                         app.data.nets.remove(i);
                         let new = if app.data.nets.is_empty() { None }
-                                  else { Some(i.saturating_sub(1).min(app.data.nets.len()-1)) };
+                        else { Some(i.saturating_sub(1).min(app.data.nets.len()-1)) };
                         app.net_ls.select(new);
+                        app.ses_ls.select(None);
+                        app.log_ls.select(None);
+                        save_data(&app.data);
+                    }
+                }
+                ConfirmKind::DelSession => {
+                    if let (Some(ni), Some(si)) = (app.ni(), app.si()) {
+                        app.data.nets[ni].sessions.remove(si);
+                        let len = app.data.nets[ni].sessions.len();
+                        app.ses_ls.select(if len==0{None}else{Some(si.saturating_sub(1).min(len-1))});
                         app.log_ls.select(None);
                         save_data(&app.data);
                     }
                 }
                 ConfirmKind::DelCi => {
-                    if let (Some(ni),Some(ci)) = (app.ni(),app.ci()) {
-                        app.data.nets[ni].checkins.remove(ci);
-                        let len = app.data.nets[ni].checkins.len();
+                    if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci()) {
+                        app.data.nets[ni].sessions[si].checkins.remove(ci);
+                        let len = app.data.nets[ni].sessions[si].checkins.len();
                         app.log_ls.select(if len==0{None}else{Some(ci.saturating_sub(1).min(len-1))});
                         save_data(&app.data);
                     }
@@ -1052,14 +1456,12 @@ fn on_theme_picker(app: &mut App, key: KeyCode) {
 fn do_export(app: &mut App) {
     let net = match app.net() { Some(n) => n, None => return };
     let safe_name: String = net.name
-        .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
-        .collect();
-    let date_part = if net.date.is_empty() {
-        "undated".to_string()
-    } else {
-        net.date.clone()
-    };
+    .chars()
+    .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+    .collect();
+    let date_part = app.active_session()
+    .map(|s| s.date.clone())
+    .unwrap_or_else(|| "undated".to_string());
     let default_name = format!("netlog_{}_{}.txt", safe_name, date_part);
     app.modal = Modal::Export(ExportDlg::new(&default_name));
 }
@@ -1088,6 +1490,7 @@ fn commit_export(app: &mut App) {
     let fname = d.filename.trim().to_string();
     if fname.is_empty() { return; }
     let net = match app.net() { Some(n) => n.clone(), None => return };
+    let ses = match app.active_session() { Some(s) => s.clone(), None => return };
     let path = home_dir().join(&fname);
 
     let mut ls: Vec<String> = vec![];
@@ -1096,15 +1499,15 @@ fn commit_export(app: &mut App) {
     ls.push("=".repeat(60));
     if !app.data.operator_call.is_empty() {
         ls.push(format!("  Net Control : {} ({})",
-            app.data.operator_call, app.data.operator_name));
+                        app.data.operator_call, app.data.operator_name));
     }
     ls.push(format!("  Net    : {}", net.name));
     if !net.club.is_empty() {
         ls.push(format!("  Club   : {}", net.club));
     }
     ls.push(format!("  Freq   : {} MHz   Offset: {}   PL: {}",
-        net.freq, net.offset, net.pl));
-    ls.push(format!("  Date   : {}   Time: {}", net.date, net.net_time));
+                    net.freq, net.offset, net.pl));
+    ls.push(format!("  Date   : {}   Time: {}", ses.date, ses.net_time));
     if net.digital {
         let mut ml = format!("  Mode   : DIGITAL -- {}", net.mode);
         if !net.mode_notes.is_empty() { ml.push_str(&format!("  ({})", net.mode_notes)); }
@@ -1112,30 +1515,30 @@ fn commit_export(app: &mut App) {
     } else {
         ls.push("  Type   : Voice".into());
     }
-    ls.push(format!("  Total  : {} check-ins", net.checkins.len()));
+    ls.push(format!("  Total  : {} check-ins", ses.checkins.len()));
     ls.push("=".repeat(60));
     ls.push(format!("{:>3}  {:<7} {:<12} {:<22} REMARKS",
-        "#", "TIME", "CALLSIGN", "NAME"));
+                    "#", "TIME", "CALLSIGN", "NAME"));
     ls.push("-".repeat(70));
-    for (i, ci) in net.checkins.iter().enumerate() {
+    for (i, ci) in ses.checkins.iter().enumerate() {
         ls.push(format!("{:>3}  {:<7} {:<12} {:<22} {}",
-            i + 1, ci.time, ci.callsign,
-            if ci.name.is_empty() { "--" } else { &ci.name },
-            ci.remarks));
+                        i + 1, ci.time, ci.callsign,
+                        if ci.name.is_empty() { "--" } else { &ci.name },
+                            ci.remarks));
     }
     ls.push("-".repeat(70));
     ls.push(format!("Exported: {}",
-        Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+                    Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
     let content = ls.join("\n") + "\n";
 
     match std::fs::write(&path, content) {
         Ok(_) => app.modal = Modal::Msg(MsgDlg {
             title: "EXPORT OK".into(),
-            msg:   format!("Saved: {}", path.display()),
+                                        msg:   format!("Saved: {}", path.display()),
         }),
         Err(e) => app.modal = Modal::Msg(MsgDlg {
             title: "EXPORT FAILED".into(),
-            msg:   e.to_string(),
+                                         msg:   e.to_string(),
         }),
     }
 }
@@ -1155,8 +1558,8 @@ fn ui(f: &mut Frame, app: &mut App) {
     // Always draw main layout underneath
     let vlay = Layout::vertical([
         Constraint::Length(2),
-        Constraint::Min(1),
-        Constraint::Length(2),
+                                Constraint::Min(1),
+                                Constraint::Length(2),
     ]).split(area);
     draw_header(f, vlay[0], app, t);
     draw_body(f, vlay[1], app, t);
@@ -1179,8 +1582,8 @@ fn draw_header(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
 
     let line = Line::from(vec![
         Span::styled(&left,  t.hdr()),
-        Span::styled(" ".repeat(mid_w), t.hdr()),
-        Span::styled(&right, t.hdr()),
+                          Span::styled(" ".repeat(mid_w), t.hdr()),
+                          Span::styled(&right, t.hdr()),
     ]);
     f.render_widget(Paragraph::new(line).style(t.hdr()), Rect{height:1,..area});
     f.render_widget(Block::default().borders(Borders::BOTTOM).border_style(t.border()), area);
@@ -1203,18 +1606,18 @@ fn draw_nets(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let focused = app.focus==Focus::Nets;
     let ttl = if focused {"▶ NETS"} else {" NETS"};
     let blk = Block::default()
-        .title(Span::styled(ttl, if focused{t.bold()}else{t.dim()}))
-        .borders(Borders::ALL).border_type(BorderType::Plain)
-        .border_style(if focused{t.borderf()}else{t.border()})
-        .style(t.normal());
+    .title(Span::styled(ttl, if focused{t.bold()}else{t.dim()}))
+    .borders(Borders::ALL).border_type(BorderType::Plain)
+    .border_style(if focused{t.borderf()}else{t.border()})
+    .style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
 
     if app.data.nets.is_empty() {
         f.render_widget(Paragraph::new(vec![
             Line::from(Span::styled("No nets saved.", t.dim())),
-            Line::from(""),
-            Line::from(Span::styled("Press [n] to add.", t.dim())),
+                                       Line::from(""),
+                                       Line::from(Span::styled("Press [n] to add.", t.dim())),
         ]).style(t.normal()), inner);
     } else {
         let max_nm = (inner.width as usize).saturating_sub(10);
@@ -1226,26 +1629,25 @@ fn draw_nets(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
                 let max_c = (inner.width as usize).saturating_sub(nm.len()+8);
                 format!(" [{}]", &n.club[..n.club.len().min(max_c)])
             } else { String::new() };
-            let cnt = n.checkins.len();
+            let cnt = n.sessions.len();
+            let total_ci = n.total_checkins();
             ListItem::new(Line::from(vec![
                 Span::styled(format!("{}{}", tag, nm), t.normal()),
-                Span::styled(club_part, t.dim()),
-                Span::styled(format!(" ({})", cnt), t.dim()),
+                                     Span::styled(club_part, t.dim()),
+                                     Span::styled(format!(" {}s/{}", cnt, total_ci), t.dim()),
             ]))
         }).collect();
         let list = List::new(items)
-            .highlight_style(if focused{t.sel()}else{t.bold()})
-            .highlight_symbol("► ");
+        .highlight_style(if focused{t.sel()}else{t.bold()})
+        .highlight_symbol("► ");
         f.render_stateful_widget(list, inner, &mut app.net_ls);
     }
-    let hr = Rect{x:area.x+1,y:area.y+area.height-2,width:area.width-2,height:1};
-    f.render_widget(Paragraph::new(Span::styled("[n]ew [e]dit [d]el",t.dim())), hr);
 }
 
 fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     if app.net().is_none() {
         let blk = Block::default().title(" NET INFO / LOG ")
-            .borders(Borders::ALL).border_style(t.border()).style(t.normal());
+        .borders(Borders::ALL).border_style(t.border()).style(t.normal());
         let inner = blk.inner(area);
         f.render_widget(blk, area);
         // Show logo centred in the empty panel
@@ -1264,7 +1666,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
                 };
                 f.render_widget(
                     Paragraph::new(Span::styled(*line, color)),
-                    Rect { x: lx, y: row, width: logo_w.min(inner.width), height: 1 },
+                                Rect { x: lx, y: row, width: logo_w.min(inner.width), height: 1 },
                 );
             }
             let hint_y = ly + logo_h + 1;
@@ -1273,77 +1675,97 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
                 let hx = inner.x + inner.width.saturating_sub(hint.len() as u16) / 2;
                 f.render_widget(
                     Paragraph::new(Span::styled(hint, t.dim())),
-                    Rect { x: hx, y: hint_y, width: inner.width, height: 1 },
+                                Rect { x: hx, y: hint_y, width: inner.width, height: 1 },
                 );
             }
         } else {
             f.render_widget(Paragraph::new(vec![
                 Line::from(Span::styled("No net selected.", t.dim())),
-                Line::from(""),
-                Line::from(Span::styled("Add or select a net on the left.", t.dim())),
+                                           Line::from(""),
+                                           Line::from(Span::styled("Add or select a net on the left.", t.dim())),
             ]).style(t.normal()), inner);
         }
         return;
     }
     let is_dig  = app.net().map_or(false,|n|n.digital);
     let has_club= app.net().map_or(false,|n|!n.club.is_empty());
-    // info height: base 5 rows + 1 if digital + 1 if club + 2 (borders)
-    let info_h = 5u16
-        + if is_dig   {1} else {0}
-        + if has_club {1} else {0}
-        + 2; // box borders
-    let [info, log] = Layout::vertical([
-        Constraint::Length(info_h), Constraint::Min(1)
-    ]).split(area)[..2] else { return };
-    draw_net_info(f, info, app, t);
-    draw_log(f, log, app, t);
+    // info height: base 4 rows + 1 if digital + 1 if club + 2 (borders)
+    let info_h = 4u16
+    + if is_dig   {1} else {0}
+    + if has_club {1} else {0}
+    + 2;
+    // Split: info bar | sessions list | log (log only visible when Focus::Log)
+    let show_log = app.focus == Focus::Log;
+    let avail = area.height.saturating_sub(info_h);
+    let ses_h = if show_log {
+        // Clamp ses_pane_h so log always gets at least 4 rows
+        app.ses_pane_h.clamp(3, avail.saturating_sub(4))
+    } else {
+        avail
+    };
+    let constraints = if show_log {
+        vec![
+            Constraint::Length(info_h),
+            Constraint::Length(ses_h),
+            Constraint::Min(4),
+        ]
+    } else {
+        vec![
+            Constraint::Length(info_h),
+            Constraint::Min(4),
+        ]
+    };
+    let chunks = Layout::vertical(constraints).split(area);
+    draw_net_info(f, chunks[0], app, t);
+    draw_sessions(f, chunks[1], app, t);
+    if show_log {
+        draw_log(f, chunks[2], app, t);
+    }
 }
 
 fn draw_net_info(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let net = match app.net() { Some(n)=>n, None=>return };
     let blk = Block::default().title(" NET INFO ")
-        .borders(Borders::ALL).border_style(t.border()).style(t.normal());
+    .borders(Borders::ALL).border_style(t.border()).style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
     if inner.height==0 { return; }
 
-    let count_str = format!("CHECK-INS: {}", net.checkins.len());
+    let ses_count = net.sessions.len();
+    let ci_count  = net.total_checkins();
+    let count_str = format!("{} session{} / {} check-in{}",
+                            ses_count, if ses_count==1{""} else {"s"},
+                            ci_count,  if ci_count==1{""} else {"s"});
     let mut rows: Vec<Line> = vec![];
 
     // Row: freq + offset
     rows.push(Line::from(vec![
         Span::styled("FREQ: ",t.cyan_s()),
-        Span::styled(format!("{} MHz",net.freq),t.amber_s()),
-        Span::raw("   "),
-        Span::styled("OFFSET: ",t.cyan_s()),
-        Span::styled(net.offset.clone(),t.blue_s()),
+                         Span::styled(format!("{} MHz",net.freq),t.amber_s()),
+                         Span::raw("   "),
+                         Span::styled("OFFSET: ",t.cyan_s()),
+                         Span::styled(net.offset.clone(),t.blue_s()),
     ]));
-    // Row: PL + date + time
+    // Row: PL only (date/time now per-session)
     rows.push(Line::from(vec![
         Span::styled("PL: ",t.cyan_s()),
-        Span::styled(net.pl.clone(),t.blue_s()),
-        Span::raw("   "),
-        Span::styled("DATE: ",t.cyan_s()),
-        Span::styled(net.date.clone(),t.blue_s()),
-        Span::raw("  "),
-        Span::styled("TIME: ",t.cyan_s()),
-        Span::styled(net.net_time.clone(),t.blue_s()),
+                         Span::styled(net.pl.clone(),t.blue_s()),
     ]));
     // Club row (if set)
     if !net.club.is_empty() {
         rows.push(Line::from(vec![
             Span::styled("CLUB: ",t.cyan_s()),
-            Span::styled(net.club.clone(),t.pink_s()),
+                             Span::styled(net.club.clone(),t.pink_s()),
         ]));
     }
     // Mode / voice row
     if net.digital {
         rows.push(Line::from(vec![
             Span::styled("MODE: ",t.cyan_s()),
-            Span::styled(format!("◆ {}",net.mode),t.amber_s()),
-            if !net.mode_notes.is_empty() {
-                Span::styled(format!("  ({})",net.mode_notes),t.dim())
-            } else { Span::raw("") },
+                             Span::styled(format!("◆ {}",net.mode),t.amber_s()),
+                             if !net.mode_notes.is_empty() {
+                                 Span::styled(format!("  ({})",net.mode_notes),t.dim())
+                             } else { Span::raw("") },
         ]));
     } else {
         rows.push(Line::from(Span::styled("VOICE NET",t.dim())));
@@ -1352,24 +1774,54 @@ fn draw_net_info(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let badge = if net.digital {" ◆ DIGITAL"} else {""};
     let pad = inner.width.saturating_sub(
         (net.name.len()+badge.len()+count_str.len()+2) as u16) as usize;
-    rows.push(Line::from(vec![
-        Span::styled(net.name.clone(),t.green_s()),
-        Span::styled(badge,t.amber_s()),
-        Span::raw(" ".repeat(pad)),
-        Span::styled(count_str,t.amber_s()),
-    ]));
+        rows.push(Line::from(vec![
+            Span::styled(net.name.clone(),t.green_s()),
+                             Span::styled(badge,t.amber_s()),
+                             Span::raw(" ".repeat(pad)),
+                             Span::styled(count_str,t.amber_s()),
+        ]));
 
-    f.render_widget(Paragraph::new(rows).style(t.normal()), inner);
+        f.render_widget(Paragraph::new(rows).style(t.normal()), inner);
+}
+
+fn draw_sessions(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
+    let focused = app.focus == Focus::Sessions;
+    let ttl = if focused { "▶ SESSIONS" } else { " SESSIONS" };
+    let blk = Block::default()
+    .title(Span::styled(ttl, if focused { t.bold() } else { t.dim() }))
+    .borders(Borders::ALL).border_type(BorderType::Plain)
+    .border_style(if focused { t.borderf() } else { t.border() })
+    .style(t.normal());
+    let inner = blk.inner(area);
+    f.render_widget(blk, area);
+
+    let net = match app.net() { Some(n) => n, None => return };
+
+    if net.sessions.is_empty() {
+        f.render_widget(Paragraph::new(vec![
+            Line::from(Span::styled("No sessions yet.", t.dim())),
+                                       Line::from(Span::styled("Press [n] to start a new session.", t.dim())),
+        ]).style(t.normal()), inner);
+    } else {
+        let items: Vec<ListItem> = net.sessions.iter().map(|s| {
+            ListItem::new(Span::styled(s.label(), t.normal()))
+        }).collect();
+        let list = List::new(items)
+        .highlight_style(if focused { t.sel() } else { t.bold() })
+        .highlight_symbol("► ");
+        f.render_stateful_widget(list, inner, &mut app.ses_ls);
+    }
+
 }
 
 fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
-    let focused = app.focus==Focus::Log;
+    let focused = app.focus == Focus::Log;
     let ttl = if focused{"▶ CHECK-IN LOG"}else{" CHECK-IN LOG"};
     let blk = Block::default()
-        .title(Span::styled(ttl,if focused{t.bold()}else{t.dim()}))
-        .borders(Borders::ALL).border_type(BorderType::Plain)
-        .border_style(if focused{t.borderf()}else{t.border()})
-        .style(t.normal());
+    .title(Span::styled(ttl,if focused{t.bold()}else{t.dim()}))
+    .borders(Borders::ALL).border_type(BorderType::Plain)
+    .border_style(if focused{t.borderf()}else{t.border()})
+    .style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
     if inner.height<3 { return; }
@@ -1377,45 +1829,52 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let hdr = Rect{y:inner.y,height:1,..inner};
     f.render_widget(Paragraph::new(Line::from(vec![
         Span::styled(format!("{:>3} ","#"),        t.bold()),
-        Span::styled(format!("{:<7}","TIME"),      t.bold()),
-        Span::styled(format!("{:<13}","CALLSIGN"), t.bold()),
-        Span::styled(format!("{:<20}","NAME"),     t.bold()),
-        Span::styled("REMARKS",                    t.bold()),
+                                              Span::styled(format!("{:<7}","TIME"),      t.bold()),
+                                              Span::styled(format!("{:<13}","CALLSIGN"), t.bold()),
+                                              Span::styled(format!("{:<20}","NAME"),     t.bold()),
+                                              Span::styled("REMARKS",                    t.bold()),
     ])), hdr);
     f.render_widget(Block::default().borders(Borders::BOTTOM).border_style(t.border()),
-        Rect{y:inner.y+1,height:1,..inner});
+                    Rect{y:inner.y+1,height:1,..inner});
 
     let list_area = Rect{y:inner.y+2,height:inner.height.saturating_sub(3),..inner};
-    let net = match app.net() { Some(n)=>n, None=>return };
 
-    if net.checkins.is_empty() {
+    // Show session date/time as subtitle
+    if let Some(ses) = app.active_session() {
+        let sub = format!(" {} {} ", ses.date, ses.net_time);
+        let sub_area = Rect { x: area.x+2, y: area.y, width: sub.len() as u16, height: 1 };
+        f.render_widget(Paragraph::new(Span::styled(sub, t.amber_s())), sub_area);
+    }
+
+    let checkins: Vec<CheckIn> = app.active_session()
+    .map(|s| s.checkins.clone())
+    .unwrap_or_default();
+
+    if checkins.is_empty() {
         f.render_widget(Paragraph::new(
             Span::styled("No check-ins yet.  Press [c] to add.",t.dim())), list_area);
         return;
     }
 
     let rw = list_area.width as usize;
-    let items: Vec<ListItem> = net.checkins.iter().enumerate().map(|(i,ci)|{
+    let items: Vec<ListItem> = checkins.iter().enumerate().map(|(i,ci)|{
         let rem_w = rw.saturating_sub(3+1+7+13+20);
         let rem = &ci.remarks[..ci.remarks.len().min(rem_w)];
         let nm  = if ci.name.is_empty(){"—"}else{&ci.name};
         ListItem::new(Line::from(vec![
             Span::styled(format!("{:>3} ",i+1),        t.dim()),
-            Span::styled(format!("{:<7}",ci.time),     t.time_s()),
-            Span::styled(format!("{:<13}",ci.callsign),t.call()),
-            Span::styled(format!("{:<20}",nm),         t.normal()),
-            Span::styled(rem.to_string(),               t.dim()),
+                                 Span::styled(format!("{:<7}",ci.time),     t.time_s()),
+                                 Span::styled(format!("{:<13}",ci.callsign),t.call()),
+                                 Span::styled(format!("{:<20}",nm),         t.normal()),
+                                 Span::styled(rem.to_string(),               t.dim()),
         ]))
     }).collect();
 
     let list = List::new(items)
-        .highlight_style(if focused{t.sel()}else{t.bold()})
-        .highlight_symbol("► ");
+    .highlight_style(if focused{t.sel()}else{t.bold()})
+    .highlight_symbol("► ");
     f.render_stateful_widget(list, list_area, &mut app.log_ls);
 
-    let hr = Rect{x:area.x+1,y:area.y+area.height-2,width:area.width-2,height:1};
-    f.render_widget(Paragraph::new(
-        Span::styled("[c]heck-in  [d]el  [x]export  [TAB]switch",t.dim())), hr);
 }
 
 fn draw_status(f: &mut Frame, area: Rect, t: &Theme) {
@@ -1423,7 +1882,7 @@ fn draw_status(f: &mut Frame, area: Rect, t: &Theme) {
     let inner = blk.inner(area);
     f.render_widget(blk, area);
     f.render_widget(Paragraph::new(Span::styled(
-        " [TAB] Switch   [n] New   [c] Check-in   [e] Edit   [x] Export   [p] Profile   [t] Theme   [Ctrl+←→] Resize   [q] Quit",
+        " [?] Help   [q] Quit",
         t.dim())), inner);
 }
 
@@ -1442,6 +1901,8 @@ fn draw_modal(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         Modal::Msg(d)     => draw_msg(f, area, &d.title, &d.msg, t),
         Modal::Export(d)  => draw_export_dlg(f, area, d, t),
         Modal::ThemePicker(d) => draw_theme_picker(f, area, d, t),
+        Modal::QuitConfirm    => draw_quit_confirm(f, area, t),
+        Modal::Help           => draw_help(f, area, t),
     }
 }
 
@@ -1484,7 +1945,7 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         };
         f.render_widget(
             Paragraph::new(Span::styled(*line, color)),
-            Rect { x: logo_x, y: row, width: logo_w.min(area.width), height: 1 },
+                        Rect { x: logo_x, y: row, width: logo_w.min(area.width), height: 1 },
         );
     }
 
@@ -1495,14 +1956,14 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     let r = centered(form_w, form_h, Rect {
         y: form_y,
         height: area.height.saturating_sub(form_y - area.y),
-        ..area
+                     ..area
     });
     if r.height < 4 { return; }
     f.render_widget(Clear, r);
     let blk = Block::default()
-        .title(Span::styled(" OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
-        .borders(Borders::ALL).border_style(t.pink_s())
-        .style(t.normal());
+    .title(Span::styled(" OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
+    .borders(Borders::ALL).border_style(t.pink_s())
+    .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -1511,15 +1972,15 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         Line::from(Span::styled("Operator Callsign:", t.cyan_s())),
         Line::from(Span::styled(
             format!(" {}{}", d.fields[OF_CALL], if d.focus==OF_CALL{"_"}else{""}),
-            if d.focus==OF_CALL{t.sel()}else{t.normal()})),
-        Line::from(""),
-        Line::from(Span::styled("Operator Name:", t.cyan_s())),
-        Line::from(Span::styled(
-            format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
-            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
-        Line::from(""),
-        Line::from(Span::styled(
-            "[ENTER] next/confirm", t.dim())),
+                if d.focus==OF_CALL{t.sel()}else{t.normal()})),
+                    Line::from(""),
+                    Line::from(Span::styled("Operator Name:", t.cyan_s())),
+                    Line::from(Span::styled(
+                        format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
+                            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
+                                Line::from(""),
+                                Line::from(Span::styled(
+                                    "[ENTER] next/confirm", t.dim())),
     ];
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
@@ -1528,9 +1989,9 @@ fn draw_operator_edit(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     let r = centered(56, 14, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-        .title(Span::styled(" EDIT OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
-        .borders(Borders::ALL).border_style(t.pink_s())
-        .style(t.normal());
+    .title(Span::styled(" EDIT OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
+    .borders(Borders::ALL).border_style(t.pink_s())
+    .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -1539,17 +2000,17 @@ fn draw_operator_edit(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         Line::from(Span::styled("Operator Callsign:", t.cyan_s())),
         Line::from(Span::styled(
             format!(" {}{}", d.fields[OF_CALL], if d.focus==OF_CALL{"_"}else{""}),
-            if d.focus==OF_CALL{t.sel()}else{t.normal()})),
-        Line::from(""),
-        Line::from(Span::styled("Operator Name:", t.cyan_s())),
-        Line::from(Span::styled(
-            format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
-            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
-        Line::from(""),
-        Line::from(""),
-        Line::from(Span::styled(
-            "[↑↓/ENTER] navigate  [ENTER on Name] confirm  [ESC] cancel",
-            t.dim())),
+                if d.focus==OF_CALL{t.sel()}else{t.normal()})),
+                    Line::from(""),
+                    Line::from(Span::styled("Operator Name:", t.cyan_s())),
+                    Line::from(Span::styled(
+                        format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
+                            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
+                                Line::from(""),
+                                Line::from(""),
+                                Line::from(Span::styled(
+                                    "[↑↓/ENTER] navigate  [ENTER on Name] confirm  [ESC] cancel",
+                                    t.dim())),
     ];
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
@@ -1560,7 +2021,7 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
     let r = centered(66, dh, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(title,t.bold()))
-        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -1595,8 +2056,8 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
     let ta = if d.focus==NF_TOGGLE{t.sel()}else{t.normal()};
     lines.push(Line::from(vec![
         Span::styled("  [DIGITAL NET]: ",ta),
-        Span::styled(tv, tc.add_modifier(Modifier::BOLD)),
-        Span::styled("  (SPACE to toggle)",t.dim()),
+                          Span::styled(tv, tc.add_modifier(Modifier::BOLD)),
+                          Span::styled("  (SPACE to toggle)",t.dim()),
     ]));
     lines.push(Line::from(""));
     if d.digital {
@@ -1606,13 +2067,13 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
         let mh = if d.focus==NF_MODE{"  [ENTER to open picker]"}else{""};
         lines.push(Line::from(vec![
             Span::styled(format!(" ▶ {}",cm),ma),
-            Span::styled(mh,t.dim()),
+                              Span::styled(mh,t.dim()),
         ]));
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled("Mode Notes / Params:",t.cyan_s())));
         lines.push(Line::from(Span::styled(
             format!(" {}{}",&d.notes,if d.focus==NF_NOTES{"_"}else{""}),
-            if d.focus==NF_NOTES{t.sel()}else{t.normal()})));
+                if d.focus==NF_NOTES{t.sel()}else{t.normal()})));
         lines.push(Line::from(""));
     }
     lines.push(Line::from(Span::styled(
@@ -1621,24 +2082,51 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
 }
 
 fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
-    let r = centered(56, 16, area);
+    let has_comp = !d.comp_labels.is_empty();
+    let comp_h   = if has_comp { d.comp_labels.len().min(6) as u16 + 2 } else { 0 };
+    let dh = 18u16 + comp_h;
+    let r  = centered(58, dh, area);
     f.render_widget(Clear, r);
-    let blk = Block::default().title(Span::styled(" ADD CHECK-IN ",t.bold()))
-        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+
+    let title = if d.fcc_pending { " ADD CHECK-IN  [Searching…] " } else { " ADD CHECK-IN " };
+    let title_style = if d.fcc_pending { t.amber_s() } else { t.bold() };
+    let blk = Block::default()
+    .title(Span::styled(title, title_style))
+    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
-    let labels=["Callsign","Name","Remarks"];
-    let vals:[&str;3]=[&d.callsign,&d.name,&d.remarks];
-    let mut lines=vec![Line::from("")];
-    for (i,(lbl,val)) in labels.iter().zip(vals.iter()).enumerate() {
-        lines.push(Line::from(Span::styled(format!("{}:",lbl),t.cyan_s())));
-        let cur=if d.focus==i{"_"}else{""};
-        lines.push(Line::from(Span::styled(format!(" {}{}",val,cur),
-            if d.focus==i{t.sel()}else{t.normal()})));
+
+    let labels = ["Callsign","Name","Remarks"];
+    let vals: [&str;3] = [&d.callsign, &d.name, &d.remarks];
+    let mut lines: Vec<Line> = vec![Line::from("")];
+
+    for (i, (lbl, val)) in labels.iter().zip(vals.iter()).enumerate() {
+        lines.push(Line::from(Span::styled(format!("{}:", lbl), t.cyan_s())));
+        let cur = if d.focus == i { "_" } else { "" };
+        lines.push(Line::from(Span::styled(format!(" {}{}", val, cur),
+                                           if d.focus == i { t.sel() } else { t.normal() })));
         lines.push(Line::from(""));
+        // Insert completion dropdown right after the callsign field
+        if i == 0 && has_comp {
+            for (ci, lbl) in d.comp_labels.iter().enumerate() {
+                let is_sel = d.comp_sel == Some(ci);
+                lines.push(Line::from(vec![
+                    Span::styled("  ", t.dim()),
+                                      Span::styled(
+                                          format!("{:<50}", lbl),
+                                              if is_sel { t.sel() } else { t.dim() },
+                                      ),
+                ]));
+            }
+            lines.push(Line::from(Span::styled(
+                "  [TAB/ENTER] apply  [↑↓] cycle", t.dim())));
+            lines.push(Line::from(""));
+        }
     }
+
     lines.push(Line::from(Span::styled(
-        "[↑↓] navigate  [ENTER] next/confirm  [ESC] cancel",t.dim())));
+        "[↑↓] navigate  [TAB] complete/search  [ENTER] confirm  [ESC] cancel",
+        t.dim())));
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
 
@@ -1648,22 +2136,22 @@ fn draw_picker(f: &mut Frame, area: Rect, p: &ModePick, t: &Theme) {
     let r   = centered((mw+10) as u16, (vis+4) as u16, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(" SELECT DIGITAL MODE ",t.bold()))
-        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
     let items: Vec<ListItem> = DIGITAL_MODES.iter().enumerate()
-        .skip(p.offset).take(vis)
-        .map(|(i,m)| {
-            if i==p.sel {
-                ListItem::new(Line::from(vec![
-                    Span::styled("▶ ",t.amber_s()),
-                    Span::styled(*m,t.sel()),
-                ]))
-            } else {
-                ListItem::new(Span::styled(format!("  {}",m),t.normal()))
-            }
-        }).collect();
+    .skip(p.offset).take(vis)
+    .map(|(i,m)| {
+        if i==p.sel {
+            ListItem::new(Line::from(vec![
+                Span::styled("▶ ",t.amber_s()),
+                                     Span::styled(*m,t.sel()),
+            ]))
+        } else {
+            ListItem::new(Span::styled(format!("  {}",m),t.normal()))
+        }
+    }).collect();
 
     let mut ls = ListState::default();
     ls.select(Some(p.sel.saturating_sub(p.offset)));
@@ -1688,9 +2176,9 @@ fn draw_export_dlg(f: &mut Frame, area: Rect, d: &ExportDlg, t: &Theme) {
     let r  = centered(dw, dh, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-        .title(Span::styled(" SAVE EXPORT — Enter filename ", t.bold()))
-        .borders(Borders::ALL).border_style(t.bold())
-        .style(t.normal());
+    .title(Span::styled(" SAVE EXPORT — Enter filename ", t.bold()))
+    .borders(Borders::ALL).border_style(t.bold())
+    .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -1717,24 +2205,24 @@ fn draw_theme_picker(f: &mut Frame, area: Rect, d: &ThemePickerDlg, t: &Theme) {
     let r  = centered(dw.min(area.width), dh.min(area.height), area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-        .title(Span::styled(" SELECT THEME ", t.bold()))
-        .borders(Borders::ALL).border_style(t.bold())
-        .style(t.normal());
+    .title(Span::styled(" SELECT THEME ", t.bold()))
+    .borders(Borders::ALL).border_style(t.bold())
+    .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
     let items: Vec<ListItem> = d.themes.iter().enumerate()
-        .skip(d.offset).take(vis)
-        .map(|(i, th)| {
-            if i == d.sel {
-                ListItem::new(Line::from(vec![
-                    Span::styled("▶ ", t.amber_s()),
-                    Span::styled(th.name.clone(), t.sel()),
-                ]))
-            } else {
-                ListItem::new(Span::styled(format!("  {}", th.name), t.normal()))
-            }
-        }).collect();
+    .skip(d.offset).take(vis)
+    .map(|(i, th)| {
+        if i == d.sel {
+            ListItem::new(Line::from(vec![
+                Span::styled("▶ ", t.amber_s()),
+                                     Span::styled(th.name.clone(), t.sel()),
+            ]))
+        } else {
+            ListItem::new(Span::styled(format!("  {}", th.name), t.normal()))
+        }
+    }).collect();
 
     let mut ls = ListState::default();
     ls.select(Some(d.sel.saturating_sub(d.offset)));
@@ -1749,9 +2237,82 @@ fn draw_theme_picker(f: &mut Frame, area: Rect, d: &ThemePickerDlg, t: &Theme) {
         f.render_widget(Paragraph::new(Span::styled("▼", t.dim())), bot);
     }
     let hint_area = Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1),
-                           width: inner.width, height: 1 };
-    f.render_widget(Paragraph::new(Span::styled(
-        "[↑↓] scroll  [ENTER] apply  [ESC] cancel", t.dim())), hint_area);
+        width: inner.width, height: 1 };
+        f.render_widget(Paragraph::new(Span::styled(
+            "[↑↓] scroll  [ENTER] apply  [ESC] cancel", t.dim())), hint_area);
+}
+
+fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
+    let dw = 62u16.min(area.width);
+    let dh = 36u16.min(area.height);
+    let r  = centered(dw, dh, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+    .title(Span::styled(" KEY BINDINGS ", t.bold()))
+    .borders(Borders::ALL).border_style(t.bold())
+    .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+
+    let section = |s: &str| Line::from(vec![
+        Span::styled(format!(" {}", s), t.bold()),
+    ]);
+    let entry = |key: &str, desc: &str| Line::from(vec![
+        Span::styled(format!("  {:<18}", key), t.amber_s()),
+                                                   Span::styled(desc.to_string(),         t.normal()),
+    ]);
+    let blank = || Line::from("");
+
+    let lines: Vec<Line> = vec![
+        blank(),
+        section("NAVIGATION"),
+        entry("Tab",              "Cycle focus: Nets → Sessions → Log"),
+        entry("↑ / ↓",           "Move selection"),
+        entry("Enter",           "Open selected item"),
+        entry("Esc",             "Go back one level"),
+        blank(),
+        section("NETS"),
+        entry("n",               "Add new net"),
+        entry("e",               "Edit selected net"),
+        entry("d",               "Delete selected net"),
+        blank(),
+        section("SESSIONS"),
+        entry("n",               "New session for today"),
+        entry("d",               "Delete selected session"),
+        entry("Ctrl+↑ / Ctrl+↓", "Resize sessions pane"),
+        blank(),
+        section("CHECK-INS"),
+        entry("c",               "Add check-in to active session"),
+        entry("d",               "Delete selected check-in"),
+        entry("Tab",             "Autocomplete callsign / search"),
+        blank(),
+        section("GENERAL"),
+        entry("x",               "Export active session to file"),
+        entry("p",               "Edit operator profile"),
+        entry("t",               "Change theme"),
+        entry("Ctrl+← / Ctrl+→", "Resize nets panel"),
+        entry("?",               "Show this help"),
+        entry("q",               "Quit"),
+        blank(),
+        Line::from(Span::styled("  Press any key to close", t.dim())),
+    ];
+
+    f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
+}
+
+fn draw_quit_confirm(f: &mut Frame, area: Rect, t: &Theme) {
+    let r = centered(24, 5, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+    .title(Span::styled(" QUIT ", t.bold()))
+    .borders(Borders::ALL).border_style(t.bold())
+    .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+    f.render_widget(Paragraph::new(vec![
+        Line::from(""),
+                                   Line::from(Span::styled("  [Y] Yes   [N] No  ", t.normal())),
+    ]).alignment(Alignment::Center).style(t.normal()), inner);
 }
 
 fn draw_confirm(f: &mut Frame, area: Rect, msg: &str, t: &Theme) {
@@ -1759,14 +2320,14 @@ fn draw_confirm(f: &mut Frame, area: Rect, msg: &str, t: &Theme) {
     let r = centered(dw, 7, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(" CONFIRM ",t.red_s()))
-        .borders(Borders::ALL).border_style(t.red_s()).style(t.normal());
+    .borders(Borders::ALL).border_style(t.red_s()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
     f.render_widget(Paragraph::new(vec![
         Line::from(""),
-        Line::from(Span::styled(msg,t.amber_s())),
-        Line::from(""),
-        Line::from(Span::styled("[Y] Yes   [N / ESC] No",t.dim())),
+                                   Line::from(Span::styled(msg,t.amber_s())),
+                                   Line::from(""),
+                                   Line::from(Span::styled("[Y] Yes   [N / ESC] No",t.dim())),
     ]).alignment(Alignment::Center).style(t.normal()), inner);
 }
 
@@ -1775,13 +2336,13 @@ fn draw_msg(f: &mut Frame, area: Rect, title: &str, msg: &str, t: &Theme) {
     let r = centered(dw, 7, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(format!(" {} ",title),t.green_s()))
-        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
     f.render_widget(Paragraph::new(vec![
         Line::from(""),
-        Line::from(Span::styled(msg,t.green_s())),
-        Line::from(""),
-        Line::from(Span::styled("Press any key...",t.dim())),
+                                   Line::from(Span::styled(msg,t.green_s())),
+                                   Line::from(""),
+                                   Line::from(Span::styled("Press any key...",t.dim())),
     ]).alignment(Alignment::Center).style(t.normal()), inner);
 }
