@@ -1,4 +1,4 @@
-# NET CONTROL — HAM Radio Net Check-in Logger
+# NET CONTROL a HAM Radio Net Check-in Logger
 
 ```
  ███╗   ██╗███████╗████████╗     ██████╗████████╗██████╗ ██╗
@@ -9,23 +9,23 @@
  ╚═╝  ╚═══╝╚══════╝   ╚═╝        ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
 ```
 
-A terminal TUI for logging amateur radio net check-ins. Built in Rust with [Ratatui](https://ratatui.rs/). Fully themeable via the [Base16](https://github.com/chriskempson/base16) colour framework — 8 themes built in, unlimited custom themes supported.
+A terminal TUI for logging amateur radio net check-ins. Built in Rust with [Ratatui](https://ratatui.rs/). Fully themeable via the [Base16](https://github.com/chriskempson/base16) colour framework - 8 themes built in, unlimited custom themes supported.
 
 ---
 
 ## Features
 
-- **Multiple saved nets** — store frequency, offset, PL tone, and club/association per net
-- **Multi-session logging** — each net holds multiple dated sessions; browse and manage them independently
-- **Digital net support** — flag a net as digital and select from 20 common modes (FT8, FT4, JS8Call, Winlink, DMR, D-STAR, and more), with a free-text notes field
-- **Check-in logging** — log callsign, operator name, and remarks with automatic UTC timestamps
-- **Callsign autocomplete** — remembers callsign/name pairs from previous check-ins and suggests matches as you type
-- **Callsign lookup** — automatically queries [callook.info](https://callook.info) in the background and fills the operator name when a result is found
-- **Operator profile** — set your callsign and name on first launch; shown in the header and included in exports
-- **Export to text** — export any session log to a formatted `.txt` file with a custom filename
-- **Resizable panels** — drag the nets/log split and session pane height with keyboard shortcuts
-- **Base16 theming** — 8 built-in themes switchable at runtime; drop any Base16 TOML into `~/.config/netcontrol/themes/` for custom colours
-- **Persistent storage** — all data saved automatically to `~/.netcontrol_data.json`
+- **Multiple saved nets** - store frequency, offset, PL tone, and club/association per net
+- **Multi-session logging** - each net holds multiple dated sessions; browse and manage them independently
+- **Digital net support** - flag a net as digital and select from 20 common modes (FT8, FT4, JS8Call, Winlink, DMR, D-STAR, and more), with a free-text notes field
+- **Check-in logging** - log callsign, operator name, and remarks with automatic UTC timestamps
+- **Callsign autocomplete** - remembers callsign/name pairs from previous check-ins and suggests matches as you type
+- **Callsign lookup** - automatically queries [callook.info](https://callook.info) in the background and fills the operator name when a result is found
+- **Operator profile** - set your callsign and name on first launch; shown in the header and included in exports
+- **Export to text** - export any session log to a formatted `.txt` file with a custom filename
+- **Resizable panels** - drag the nets/log split and session pane height with keyboard shortcuts
+- **Base16 theming** - 8 built-in themes switchable at runtime; drop any Base16 TOML into `~/.config/netcontrol/themes/` for custom colours
+- **Persistent storage** - all data saved automatically to `~/.netcontrol_data.json`
 
 ---
 
@@ -94,7 +94,7 @@ NETS  →(Enter)→  SESSIONS  →(Enter)→  LOG
 
 ### Sessions
 
-Each net can have multiple sessions — one per time the net runs. Select a net and press `Enter` to see its session list. From there:
+Each net can have multiple sessions - one per time the net runs. Select a net and press `Enter` to see its session list. From there:
 
 - `n` creates a new session dated today with the current local time
 - `Enter` on a session opens its check-in log
@@ -182,7 +182,7 @@ Drop any Base16 TOML file into `~/.config/netcontrol/themes/`. It will appear in
 ```toml
 scheme = "My Theme"
 
-# Backgrounds — darkest to lightest
+# Backgrounds - darkest to lightest
 base00 = "1a1b26"   # main background
 base01 = "16172e"   # unused (kept for compatibility)
 base02 = "2a2b3d"   # selection background
@@ -195,25 +195,25 @@ base06 = "cbdbf8"   # unused
 base07 = "e5e9fc"   # unused
 
 # Accent colours
-base08 = "f7768e"   # red   — danger, delete confirmations
-base09 = "ff9e64"   # amber — frequencies, accents
-base0a = "e0af68"   # yellow — UTC timestamps
-base0b = "9ece6a"   # green  — net names, ok states
-base0c = "73daca"   # cyan   — field labels, callsigns
-base0d = "7aa2f7"   # blue   — info values
-base0e = "bb9af7"   # mauve  — bold text, headings, focused borders
-base0f = "b45bcf"   # pink   — club names, operator profile dialog
+base08 = "f7768e"   # red   - danger, delete confirmations
+base09 = "ff9e64"   # amber - frequencies, accents
+base0a = "e0af68"   # yellow - UTC timestamps
+base0b = "9ece6a"   # green  - net names, ok states
+base0c = "73daca"   # cyan   - field labels, callsigns
+base0d = "7aa2f7"   # blue   - info values
+base0e = "bb9af7"   # mauve  - bold text, headings, focused borders
+base0f = "b45bcf"   # pink   - club names, operator profile dialog
 ```
 
 Values can be bare hex (`1a1b26`) or prefixed (`#1a1b26`). The `scheme` key sets the name shown in the picker; if omitted the filename is used.
 
-See the [base16-gallery](https://tinted-theming.github.io/base16-gallery/) for hundreds of community themes. Most ship as YAML — convert by replacing `:` with `=` and removing the `---` header.
+See the [base16-gallery](https://tinted-theming.github.io/base16-gallery/) for hundreds of community themes. Most ship as YAML - convert by replacing `:` with `=` and removing the `---` header.
 
 ---
 
 ## Data file
 
-All nets, sessions, check-ins, known callsigns, and the active theme name are stored in `~/.netcontrol_data.json`. This file is human-readable, can be backed up or version-controlled, and is forward-compatible — new fields use `#[serde(default)]` so existing data always loads cleanly.
+All nets, sessions, check-ins, known callsigns, and the active theme name are stored in `~/.netcontrol_data.json`. This file is human-readable, can be backed up or version-controlled, and is forward-compatible - new fields use `#[serde(default)]` so existing data always loads cleanly.
 
 ---
 
@@ -231,7 +231,7 @@ All nets, sessions, check-ins, known callsigns, and the active theme name are st
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
 
 ---
 
