@@ -8,7 +8,7 @@
 //   n        New net        e  Edit net
 //   c        Add check-in   d  Delete
 //   x        Export log     p  Edit operator profile
-//   q        Quit
+//   Ctrl+Q   Quit
 
 mod theme;
 mod models;

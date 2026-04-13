@@ -361,7 +361,7 @@ fn draw_status(f: &mut Frame, area: Rect, t: &Theme) {
     let inner = blk.inner(area);
     f.render_widget(blk, area);
     f.render_widget(Paragraph::new(Span::styled(
-        " [?] Help   [q] Quit",
+        " [?] Help   [^Q] Quit",
         t.dim())), inner);
 }
 
@@ -797,7 +797,7 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
         entry("t",               "Change theme"),
         entry("Ctrl+← / Ctrl+→", "Resize nets panel"),
         entry("?",               "Show this help"),
-        entry("q",               "Quit"),
+        entry("Ctrl+Q",          "Quit"),
         blank(),
         Line::from(Span::styled("  Press any key to close", t.dim())),
     ];

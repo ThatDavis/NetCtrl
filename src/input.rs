@@ -24,9 +24,9 @@ pub fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
         _ => {}
     }
 
-    // For all non-text-input states 'q'/'Q' is the quit shortcut.
+    // For all non-text-input states Ctrl+Q is the quit shortcut.
     match key {
-        KeyCode::Char('q') | KeyCode::Char('Q') => {
+        KeyCode::Char('q') if mods.contains(KeyModifiers::CONTROL) => {
             match &app.modal {
                 Modal::None        => { app.modal = Modal::QuitConfirm; }
                 Modal::QuitConfirm => return false,
@@ -51,7 +51,7 @@ pub fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
 
 pub fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
     match key {
-        KeyCode::Char('q') | KeyCode::Char('Q') => return false,
+        KeyCode::Char('q') if mods.contains(KeyModifiers::CONTROL) => return false,
 
         // Ctrl+Left / Ctrl+Right — resize the nets panel (tmux-style)
         KeyCode::Left if mods.contains(KeyModifiers::CONTROL) => {
