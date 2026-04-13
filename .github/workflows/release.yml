@@ -3,15 +3,18 @@ name: Release
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'   # matches v1.0.0, v1.2.3-beta, etc.
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ── Build matrix ────────────────────────────────────────────────────────────
   build:
-    name: Build ${{ matrix.target }}
+    name: Build ${{ matrix.friendly_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,35 +22,39 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            friendly_name: linux-x86_64
             archive: tar.gz
 
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
+            friendly_name: linux-aarch64
             archive: tar.gz
             cross: true
 
           - target: x86_64-apple-darwin
             os: macos-latest
+            friendly_name: macos-x86_64
             archive: tar.gz
 
           - target: aarch64-apple-darwin
             os: macos-latest
+            friendly_name: macos-aarch64
             archive: tar.gz
 
           - target: x86_64-pc-windows-msvc
             os: windows-latest
+            friendly_name: windows-x86_64
             archive: zip
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      # cross-compilation helper for Linux aarch64
       - name: Install cross
         if: matrix.cross
         run: cargo install cross --git https://github.com/cross-rs/cross
@@ -67,7 +74,7 @@ jobs:
         run: |
           BIN="target/${{ matrix.target }}/release/netcontrol"
           TAG="${GITHUB_REF_NAME}"
-          ARCHIVE="netcontrol-${TAG}-${{ matrix.target }}.tar.gz"
+          ARCHIVE="netcontrol-${TAG}-${{ matrix.friendly_name }}.tar.gz"
           strip "${BIN}" 2>/dev/null || true
           tar -czf "${ARCHIVE}" -C "$(dirname ${BIN})" "$(basename ${BIN})"
           echo "ASSET=${ARCHIVE}" >> "$GITHUB_ENV"
@@ -76,16 +83,16 @@ jobs:
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
-          $BIN  = "target\${{ matrix.target }}\release\netcontrol.exe"
-          $TAG  = "$env:GITHUB_REF_NAME"
-          $ARCHIVE = "netcontrol-${TAG}-${{ matrix.target }}.zip"
+          $BIN     = "target\${{ matrix.target }}\release\netcontrol.exe"
+          $TAG     = "$env:GITHUB_REF_NAME"
+          $ARCHIVE = "netcontrol-${TAG}-${{ matrix.friendly_name }}.zip"
           Compress-Archive -Path $BIN -DestinationPath $ARCHIVE
           echo "ASSET=$ARCHIVE" >> $env:GITHUB_ENV
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
-          name: netcontrol-${{ matrix.target }}
+          name: netcontrol-${{ matrix.friendly_name }}
           path: ${{ env.ASSET }}
           if-no-files-found: error
           retention-days: 1
@@ -98,18 +105,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 0   # needed for changelog generation
+          fetch-depth: 0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.3.0
         with:
           path: artifacts/
           merge-multiple: true
 
       - name: Generate changelog
-        id: changelog
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME}"
@@ -119,7 +125,6 @@ jobs:
           else
             NOTES=$(git log --pretty=format:'- %s (%h)' --no-merges)
           fi
-          # Write to file to handle multi-line safely
           {
             echo "## What's Changed"
             echo ""
@@ -127,13 +132,13 @@ jobs:
             echo ""
             echo "## Downloads"
             echo ""
-            echo "| Platform | Archive |"
-            echo "|----------|---------|"
-            echo "| Linux x86-64 | \`netcontrol-${TAG}-x86_64-unknown-linux-gnu.tar.gz\` |"
-            echo "| Linux arm64  | \`netcontrol-${TAG}-aarch64-unknown-linux-gnu.tar.gz\` |"
-            echo "| macOS x86-64 | \`netcontrol-${TAG}-x86_64-apple-darwin.tar.gz\` |"
-            echo "| macOS arm64  | \`netcontrol-${TAG}-aarch64-apple-darwin.tar.gz\` |"
-            echo "| Windows x64  | \`netcontrol-${TAG}-x86_64-pc-windows-msvc.zip\` |"
+            echo "| Platform | File |"
+            echo "|----------|------|"
+            echo "| Linux x86-64   | \`netcontrol-${TAG}-linux-x86_64.tar.gz\` |"
+            echo "| Linux arm64    | \`netcontrol-${TAG}-linux-aarch64.tar.gz\` |"
+            echo "| macOS x86-64   | \`netcontrol-${TAG}-macos-x86_64.tar.gz\` |"
+            echo "| macOS arm64    | \`netcontrol-${TAG}-macos-aarch64.tar.gz\` |"
+            echo "| Windows x86-64 | \`netcontrol-${TAG}-windows-x86_64.zip\` |"
           } > release_notes.md
 
       - name: Create release
@@ -142,7 +147,7 @@ jobs:
           name: NET CONTROL ${{ github.ref_name }}
           body_path: release_notes.md
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}  # v1.0.0-beta → pre-release
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: artifacts/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
