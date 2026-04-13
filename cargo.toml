@@ -1,0 +1,31 @@
+[package]
+name        = "netcontrol"
+version     = "1.0.1"
+edition     = "2026"
+description = "Terminal TUI for logging amateur radio net check-ins"
+authors     = ["Claude + KE9DKR"]
+license     = "MIT"
+repository  = "https://github.com/ThatDavis/netcontrol"
+homepage    = "https://github.com/ThatDavis/netcontrol"
+readme      = "README.md"
+keywords    = ["ham-radio", "amateur-radio", "tui", "net-control", "logging"]
+categories  = ["command-line-utilities"]
+
+[[bin]]
+name = "netcontrol"
+path = "src/main.rs"
+
+[dependencies]
+ratatui    = "0.26"
+crossterm  = "0.27"
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono     = { version = "0.4", features = ["serde"] }
+minreq     = { version = "2", features = ["https"] }
+
+[profile.release]
+opt-level     = 3
+lto           = true      # link-time optimisation — smaller, faster binary
+codegen-units = 1         # single codegen unit for best LTO
+strip         = true      # strip symbols automatically (no manual `strip` needed)
+panic         = "abort"   # smaller binary, no unwinding overhead
