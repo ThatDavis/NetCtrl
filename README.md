@@ -1,12 +1,14 @@
 # NET CONTROL a HAM Radio Net Check-in Logger
 
 ```
- ███╗   ██╗███████╗████████╗     ██████╗████████╗██████╗ ██╗
- ████╗  ██║██╔════╝╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██║
- ██╔██╗ ██║█████╗     ██║       ██║        ██║   ██████╔╝██║
- ██║╚██╗██║██╔══╝     ██║       ██║        ██║   ██╔══██╗██║
- ██║ ╚████║███████╗   ██║       ╚██████╗   ██║   ██║  ██║███████╗
- ╚═╝  ╚═══╝╚══════╝   ╚═╝        ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
+░░░░    ░░░░              ░░░░   ░░░░░░░░░░   ░░░░              ░░░░ 
+░████░  ░████             ░████  ░██████████  ░████             ░████
+░██████░░████░░░░░░░░░░ ░░░████░ ░██████████░░░████░ ░░░░░░░░░░ ░████
+░████████████░██████████░████████░████  ████░████████░██████████░████
+░████████████░████░░████ ████████░████ ░░░░  ████████░██████████░████
+░████████████░██████████  ░████  ░████░░████  ░████  ░████  ████░████
+░████  ██████░████░░░░░   ░████░ ░██████████  ░████░ ░████      ░████
+ ████    ████ ██████████   ██████ ██████████   ██████ ████       ████
 ```
 
 A terminal TUI for logging amateur radio net check-ins. Built in Rust with [Ratatui](https://ratatui.rs/). Fully themeable via the [Base16](https://github.com/chriskempson/base16) colour framework - 8 themes built in, unlimited custom themes supported.
@@ -47,7 +49,7 @@ Requires only standard system libraries (`libc`, `libm`, `libgcc_s`) present on 
 Requires Rust 1.75 or later. Install via [rustup](https://rustup.rs/) if needed.
 
 ```bash
-git clone https://github.com/youruser/netcontrol
+git clone https://github.com/ThatDavis/netcontrol
 cd netcontrol
 cargo build --release
 ./target/release/netcontrol
