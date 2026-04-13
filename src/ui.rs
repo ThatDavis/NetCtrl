@@ -405,7 +405,8 @@ fn draw_operator_dlg(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
 }
 
 fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
-    // Fill background
+    // Clear all cell characters first, then fill background
+    f.render_widget(Clear, area);
     f.render_widget(Block::default().style(Style::default().bg(t.bg())), area);
 
     // Logo — centred horizontally, near the top
