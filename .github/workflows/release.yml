@@ -41,7 +41,7 @@ jobs:
             friendly_name: macos-aarch64
             archive: tar.gz
 
-          - target: x86_64-pc-windows-msvc
+          - target: x86_64-pc-windows-gnu
             os: windows-latest
             friendly_name: windows-x86_64
             archive: zip
@@ -54,6 +54,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      # MinGW linker needed for the GNU Windows target
+      - name: Install MinGW (Windows GNU)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        uses: blinemedical/setup-mingw@v1
 
       - name: Install cross
         if: matrix.cross
