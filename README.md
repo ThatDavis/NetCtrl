@@ -123,9 +123,9 @@ Callsign/name pairs are saved to `~/.netcontrol_data.json` and grow richer over 
 | Frequency (MHz) | Repeater or simplex frequency |
 | Offset | Repeater offset e.g. `+0.600` or `SIMPLEX` |
 | PL Tone (Hz) | CTCSS tone or `NONE` |
-| Date | Default date for new sessions (`YYYY-MM-DD`) |
-| Time | Default time for new sessions (`HH:MM`) |
 | Digital Net | Toggle with `Space`; expands to show mode picker and notes field |
+
+Date and time are set per-session, not per-net. When you create a new session with `n`, it is automatically stamped with today's date and current local time.
 
 ### Export format
 

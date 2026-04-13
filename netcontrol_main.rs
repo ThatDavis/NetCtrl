@@ -67,8 +67,8 @@ fn parse_hex_color(h: &str) -> Color {
     if h.len() == 6 {
         if let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&h[0..2], 16),
-                                        u8::from_str_radix(&h[2..4], 16),
-                                        u8::from_str_radix(&h[4..6], 16),
+            u8::from_str_radix(&h[2..4], 16),
+            u8::from_str_radix(&h[4..6], 16),
         ) {
             return Color::Rgb(r, g, b);
         }
@@ -254,9 +254,9 @@ fn builtin_themes() -> Vec<Theme> {
 fn load_theme_from_toml(path: &std::path::Path) -> Option<Theme> {
     let content = std::fs::read_to_string(path).ok()?;
     let mut name = path.file_stem()
-    .and_then(|s| s.to_str())
-    .unwrap_or("custom")
-    .to_string();
+        .and_then(|s| s.to_str())
+        .unwrap_or("custom")
+        .to_string();
     let mut slots: Vec<String> = vec![String::new(); 16];
     for line in content.lines() {
         let line = line.trim();
@@ -267,25 +267,25 @@ fn load_theme_from_toml(path: &std::path::Path) -> Option<Theme> {
             }
         }
         for (i, key) in ["base00","base01","base02","base03","base04","base05",
-            "base06","base07","base08","base09","base0a","base0b",
-            "base0c","base0d","base0e","base0f"].iter().enumerate() {
-                if line.to_lowercase().starts_with(key) {
-                    if let Some(val) = line.splitn(2, '=').nth(1) {
-                        let v = val.trim().trim_matches('"').trim_matches('\'').to_string();
-                        if !v.is_empty() && slots[i].is_empty() { slots[i] = v; }
-                    }
+                          "base06","base07","base08","base09","base0a","base0b",
+                          "base0c","base0d","base0e","base0f"].iter().enumerate() {
+            if line.to_lowercase().starts_with(key) {
+                if let Some(val) = line.splitn(2, '=').nth(1) {
+                    let v = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                    if !v.is_empty() && slots[i].is_empty() { slots[i] = v; }
                 }
             }
+        }
     }
     // Require at least base00 and base05
     if slots[0].is_empty() || slots[5].is_empty() { return None; }
     let p = |i: usize| parse_hex_color(if slots[i].is_empty() { "#000000" } else { &slots[i] });
     Some(Theme {
         name,
-         base00: p(0),  base01: p(1),  base02: p(2),  base03: p(3),
-         base04: p(4),  base05: p(5),  base06: p(6),  base07: p(7),
-         base08: p(8),  base09: p(9),  base0a: p(10), base0b: p(11),
-         base0c: p(12), base0d: p(13), base0e: p(14), base0f: p(15),
+        base00: p(0),  base01: p(1),  base02: p(2),  base03: p(3),
+        base04: p(4),  base05: p(5),  base06: p(6),  base07: p(7),
+        base08: p(8),  base09: p(9),  base0a: p(10), base0b: p(11),
+        base0c: p(12), base0d: p(13), base0e: p(14), base0f: p(15),
     })
 }
 
@@ -296,10 +296,10 @@ fn all_themes() -> Vec<Theme> {
     let theme_dir = home_dir().join(".config").join("netcontrol").join("themes");
     if let Ok(rd) = std::fs::read_dir(&theme_dir) {
         let mut extras: Vec<Theme> = rd
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |x| x == "toml"))
-        .filter_map(|e| load_theme_from_toml(&e.path()))
-        .collect();
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map_or(false, |x| x == "toml"))
+            .filter_map(|e| load_theme_from_toml(&e.path()))
+            .collect();
         extras.sort_by(|a,b| a.name.cmp(&b.name));
         themes.extend(extras);
     }
@@ -309,21 +309,21 @@ fn all_themes() -> Vec<Theme> {
 // ── Digital modes ─────────────────────────────────────────────────────────────
 const DIGITAL_MODES: &[&str] = &[
     "FT8","FT4","JS8Call","Winlink","APRS","RTTY",
-"PSK31","OLIVIA","VARA HF","VARA FM","D-STAR",
-"DMR","System Fusion / YSF","P25","NXDN","SSTV",
-"WSPR","MSK144","Q65","OTHER",
+    "PSK31","OLIVIA","VARA HF","VARA FM","D-STAR",
+    "DMR","System Fusion / YSF","P25","NXDN","SSTV",
+    "WSPR","MSK144","Q65","OTHER",
 ];
 
 // ── ASCII art logo ───────────────────────────────────────────────────────────
 const LOGO: &[&str] = &[
     r" ███╗   ██╗███████╗████████╗     ██████╗████████╗██████╗ ██╗     ",
-r" ████╗  ██║██╔════╝╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██║     ",
-r" ██╔██╗ ██║█████╗     ██║       ██║        ██║   ██████╔╝██║     ",
-r" ██║╚██╗██║██╔══╝     ██║       ██║        ██║   ██╔══██╗██║     ",
-r" ██║ ╚████║███████╗   ██║       ╚██████╗   ██║   ██║  ██║███████╗",
-r" ╚═╝  ╚═══╝╚══════╝   ╚═╝        ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝",
-r"",
-r"              Amateur Radio Net Check-in Logger  ◈  v1.0          ",
+    r" ████╗  ██║██╔════╝╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██║     ",
+    r" ██╔██╗ ██║█████╗     ██║       ██║        ██║   ██████╔╝██║     ",
+    r" ██║╚██╗██║██╔══╝     ██║       ██║        ██║   ██╔══██╗██║     ",
+    r" ██║ ╚████║███████╗   ██║       ╚██████╗   ██║   ██║  ██║███████╗",
+    r" ╚═╝  ╚═══╝╚══════╝   ╚═╝        ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝",
+    r"",
+    r"              Amateur Radio Net Check-in Logger  ◈  v1.0          ",
 ];
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -389,9 +389,9 @@ impl Net {
             } else { self.net_time.clone() };
             self.sessions.push(Session {
                 id:       new_id(),
-                               date,
-                               net_time,
-                               checkins: std::mem::take(&mut self.checkins),
+                date,
+                net_time,
+                checkins: std::mem::take(&mut self.checkins),
             });
         }
     }
@@ -429,8 +429,8 @@ impl AppData {
     fn completions(&self, prefix: &str) -> Vec<&KnownOp> {
         let p = prefix.to_uppercase();
         self.known_ops.iter()
-        .filter(|o| o.callsign.starts_with(&p))
-        .collect()
+            .filter(|o| o.callsign.starts_with(&p))
+            .collect()
     }
 }
 
@@ -464,9 +464,9 @@ enum Screen { Startup, Main }
 // ── Modal state ───────────────────────────────────────────────────────────────
 // Net dialog field indices
 const NF_NAME:usize=0; const NF_CLUB:usize=1; const NF_FREQ:usize=2;
-const NF_OFFSET:usize=3; const NF_PL:usize=4; const NF_DATE:usize=5;
-const NF_TIME:usize=6; const NF_TOGGLE:usize=7; const NF_MODE:usize=8;
-const NF_NOTES:usize=9;
+const NF_OFFSET:usize=3; const NF_PL:usize=4;
+const NF_TOGGLE:usize=5; const NF_MODE:usize=6;
+const NF_NOTES:usize=7;
 
 #[derive(Debug,PartialEq,Clone,Copy)]
 enum NdMode { Add, Edit }
@@ -474,7 +474,7 @@ enum NdMode { Add, Edit }
 #[derive(Debug)]
 struct NetDlg {
     mode:     NdMode,
-    fields:   [String;7],  // name club freq offset pl date time
+    fields:   [String;5],  // name club freq offset pl
     digital:  bool,
     mode_idx: usize,
     notes:    String,
@@ -483,12 +483,10 @@ struct NetDlg {
 }
 impl NetDlg {
     fn new_add() -> Self {
-        let today = Utc::now().format("%Y-%m-%d").to_string();
-        let now   = chrono::Local::now().format("%H:%M").to_string();
         Self {
             mode: NdMode::Add,
             fields: [String::new(), String::new(), String::new(),
-            "+0.600".into(), "NONE".into(), today, now],
+                     "+0.600".into(), "NONE".into()],
             digital: false, mode_idx: 0, notes: String::new(),
             focus: NF_NAME, edit_id: None,
         }
@@ -498,7 +496,7 @@ impl NetDlg {
         Self {
             mode: NdMode::Edit,
             fields: [n.name.clone(), n.club.clone(), n.freq.clone(),
-            n.offset.clone(), n.pl.clone(), n.date.clone(), n.net_time.clone()],
+                     n.offset.clone(), n.pl.clone()],
             digital: n.digital, mode_idx: mi, notes: n.mode_notes.clone(),
             focus: NF_NAME, edit_id: Some(n.id.clone()),
         }
@@ -506,15 +504,15 @@ impl NetDlg {
     fn max_focus(&self) -> usize { if self.digital { NF_NOTES } else { NF_TOGGLE } }
     fn cur_field_mut(&mut self) -> Option<&mut String> {
         match self.focus {
-            NF_NAME..=NF_TIME => Some(&mut self.fields[self.focus]),
-            NF_NOTES          => Some(&mut self.notes),
-            _                 => None,
+            NF_NAME..=NF_PL => Some(&mut self.fields[self.focus]),
+            NF_NOTES         => Some(&mut self.notes),
+            _                => None,
         }
     }
     fn max_len(&self) -> usize {
         match self.focus {
             NF_NAME=>30, NF_CLUB=>40, NF_FREQ=>12, NF_OFFSET=>12,
-            NF_PL=>10, NF_DATE=>12, NF_TIME=>6, NF_NOTES=>50, _=>0,
+            NF_PL=>10, NF_NOTES=>50, _=>0,
         }
     }
 }
@@ -582,13 +580,13 @@ impl CiDlg {
             return;
         }
         let matches: Vec<_> = ops.iter()
-        .filter(|o| o.callsign.starts_with(&prefix))
-        .take(8)
-        .collect();
+            .filter(|o| o.callsign.starts_with(&prefix))
+            .take(8)
+            .collect();
         self.completions = matches.iter().map(|o| o.callsign.clone()).collect();
         self.comp_labels  = matches.iter().map(|o|
-        if o.name.is_empty() { o.callsign.clone() }
-        else { format!("{} — {}", o.callsign, o.name) }
+            if o.name.is_empty() { o.callsign.clone() }
+            else { format!("{} — {}", o.callsign, o.name) }
         ).collect();
         self.comp_sel = if self.completions.is_empty() { None } else { Some(0) };
     }
@@ -618,10 +616,10 @@ impl CiDlg {
             let url = format!("https://callook.info/{}/json", cs);
             let result = (|| -> Option<String> {
                 let body = minreq::get(&url)
-                .with_timeout(5)
-                .send().ok()?;
+                    .with_timeout(5)
+                    .send().ok()?;
                 let resp: serde_json::Value =
-                serde_json::from_str(body.as_str().ok()?).ok()?;
+                    serde_json::from_str(body.as_str().ok()?).ok()?;
                 // callook.info: { "status": "VALID", "name": "HIRAM PERCY MAXIM", ... }
                 if resp.get("status")?.as_str()? != "VALID" { return None; }
                 let name = resp.get("name")?.as_str()?.trim().to_string();
@@ -629,7 +627,7 @@ impl CiDlg {
             })();
             let _ = tx.send(match result {
                 Some(name) => FccResult::Found(name),
-                            None       => FccResult::NotFound,
+                None       => FccResult::NotFound,
             });
         });
     }
@@ -722,8 +720,8 @@ impl App {
         let theme = {
             let name = &data.theme_name;
             all_themes().into_iter()
-            .find(|t| &t.name == name)
-            .unwrap_or_else(theme_catppuccin_mocha)
+                .find(|t| &t.name == name)
+                .unwrap_or_else(theme_catppuccin_mocha)
         };
         Self {
             data, screen, focus: Focus::Nets,
@@ -776,7 +774,7 @@ fn main() -> io::Result<()> {
     disable_raw_mode()?;
     execute!(term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
     term.show_cursor()?;
-    println!("73 de NET CONTROL — 73!");
+    println!("73!");
     res
 }
 
@@ -1178,8 +1176,8 @@ fn commit_net(app: &mut App) {
         freq:       dlg.fields[NF_FREQ].trim().to_string(),
         offset:     dlg.fields[NF_OFFSET].trim().to_string(),
         pl:         dlg.fields[NF_PL].trim().to_string(),
-        date:       dlg.fields[NF_DATE].trim().to_string(),
-        net_time:   dlg.fields[NF_TIME].trim().to_string(),
+        date:       String::new(),
+        net_time:   String::new(),
         digital:    dlg.digital,
         mode:       if dlg.digital { DIGITAL_MODES[dlg.mode_idx].into() } else { String::new() },
         mode_notes: dlg.notes.trim().to_string(),
@@ -1384,7 +1382,7 @@ fn on_confirm(app: &mut App, key: KeyCode) {
                     if let Some(i) = app.ni() {
                         app.data.nets.remove(i);
                         let new = if app.data.nets.is_empty() { None }
-                        else { Some(i.saturating_sub(1).min(app.data.nets.len()-1)) };
+                                  else { Some(i.saturating_sub(1).min(app.data.nets.len()-1)) };
                         app.net_ls.select(new);
                         app.ses_ls.select(None);
                         app.log_ls.select(None);
@@ -1456,12 +1454,12 @@ fn on_theme_picker(app: &mut App, key: KeyCode) {
 fn do_export(app: &mut App) {
     let net = match app.net() { Some(n) => n, None => return };
     let safe_name: String = net.name
-    .chars()
-    .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
-    .collect();
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
     let date_part = app.active_session()
-    .map(|s| s.date.clone())
-    .unwrap_or_else(|| "undated".to_string());
+        .map(|s| s.date.clone())
+        .unwrap_or_else(|| "undated".to_string());
     let default_name = format!("netlog_{}_{}.txt", safe_name, date_part);
     app.modal = Modal::Export(ExportDlg::new(&default_name));
 }
@@ -1499,14 +1497,14 @@ fn commit_export(app: &mut App) {
     ls.push("=".repeat(60));
     if !app.data.operator_call.is_empty() {
         ls.push(format!("  Net Control : {} ({})",
-                        app.data.operator_call, app.data.operator_name));
+            app.data.operator_call, app.data.operator_name));
     }
     ls.push(format!("  Net    : {}", net.name));
     if !net.club.is_empty() {
         ls.push(format!("  Club   : {}", net.club));
     }
     ls.push(format!("  Freq   : {} MHz   Offset: {}   PL: {}",
-                    net.freq, net.offset, net.pl));
+        net.freq, net.offset, net.pl));
     ls.push(format!("  Date   : {}   Time: {}", ses.date, ses.net_time));
     if net.digital {
         let mut ml = format!("  Mode   : DIGITAL -- {}", net.mode);
@@ -1518,27 +1516,27 @@ fn commit_export(app: &mut App) {
     ls.push(format!("  Total  : {} check-ins", ses.checkins.len()));
     ls.push("=".repeat(60));
     ls.push(format!("{:>3}  {:<7} {:<12} {:<22} REMARKS",
-                    "#", "TIME", "CALLSIGN", "NAME"));
+        "#", "TIME", "CALLSIGN", "NAME"));
     ls.push("-".repeat(70));
     for (i, ci) in ses.checkins.iter().enumerate() {
         ls.push(format!("{:>3}  {:<7} {:<12} {:<22} {}",
-                        i + 1, ci.time, ci.callsign,
-                        if ci.name.is_empty() { "--" } else { &ci.name },
-                            ci.remarks));
+            i + 1, ci.time, ci.callsign,
+            if ci.name.is_empty() { "--" } else { &ci.name },
+            ci.remarks));
     }
     ls.push("-".repeat(70));
     ls.push(format!("Exported: {}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+        Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
     let content = ls.join("\n") + "\n";
 
     match std::fs::write(&path, content) {
         Ok(_) => app.modal = Modal::Msg(MsgDlg {
             title: "EXPORT OK".into(),
-                                        msg:   format!("Saved: {}", path.display()),
+            msg:   format!("Saved: {}", path.display()),
         }),
         Err(e) => app.modal = Modal::Msg(MsgDlg {
             title: "EXPORT FAILED".into(),
-                                         msg:   e.to_string(),
+            msg:   e.to_string(),
         }),
     }
 }
@@ -1558,8 +1556,8 @@ fn ui(f: &mut Frame, app: &mut App) {
     // Always draw main layout underneath
     let vlay = Layout::vertical([
         Constraint::Length(2),
-                                Constraint::Min(1),
-                                Constraint::Length(2),
+        Constraint::Min(1),
+        Constraint::Length(2),
     ]).split(area);
     draw_header(f, vlay[0], app, t);
     draw_body(f, vlay[1], app, t);
@@ -1582,8 +1580,8 @@ fn draw_header(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
 
     let line = Line::from(vec![
         Span::styled(&left,  t.hdr()),
-                          Span::styled(" ".repeat(mid_w), t.hdr()),
-                          Span::styled(&right, t.hdr()),
+        Span::styled(" ".repeat(mid_w), t.hdr()),
+        Span::styled(&right, t.hdr()),
     ]);
     f.render_widget(Paragraph::new(line).style(t.hdr()), Rect{height:1,..area});
     f.render_widget(Block::default().borders(Borders::BOTTOM).border_style(t.border()), area);
@@ -1606,18 +1604,18 @@ fn draw_nets(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let focused = app.focus==Focus::Nets;
     let ttl = if focused {"▶ NETS"} else {" NETS"};
     let blk = Block::default()
-    .title(Span::styled(ttl, if focused{t.bold()}else{t.dim()}))
-    .borders(Borders::ALL).border_type(BorderType::Plain)
-    .border_style(if focused{t.borderf()}else{t.border()})
-    .style(t.normal());
+        .title(Span::styled(ttl, if focused{t.bold()}else{t.dim()}))
+        .borders(Borders::ALL).border_type(BorderType::Plain)
+        .border_style(if focused{t.borderf()}else{t.border()})
+        .style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
 
     if app.data.nets.is_empty() {
         f.render_widget(Paragraph::new(vec![
             Line::from(Span::styled("No nets saved.", t.dim())),
-                                       Line::from(""),
-                                       Line::from(Span::styled("Press [n] to add.", t.dim())),
+            Line::from(""),
+            Line::from(Span::styled("Press [n] to add.", t.dim())),
         ]).style(t.normal()), inner);
     } else {
         let max_nm = (inner.width as usize).saturating_sub(10);
@@ -1633,13 +1631,13 @@ fn draw_nets(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
             let total_ci = n.total_checkins();
             ListItem::new(Line::from(vec![
                 Span::styled(format!("{}{}", tag, nm), t.normal()),
-                                     Span::styled(club_part, t.dim()),
-                                     Span::styled(format!(" {}s/{}", cnt, total_ci), t.dim()),
+                Span::styled(club_part, t.dim()),
+                Span::styled(format!(" {}s/{}", cnt, total_ci), t.dim()),
             ]))
         }).collect();
         let list = List::new(items)
-        .highlight_style(if focused{t.sel()}else{t.bold()})
-        .highlight_symbol("► ");
+            .highlight_style(if focused{t.sel()}else{t.bold()})
+            .highlight_symbol("► ");
         f.render_stateful_widget(list, inner, &mut app.net_ls);
     }
 }
@@ -1647,7 +1645,7 @@ fn draw_nets(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
 fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     if app.net().is_none() {
         let blk = Block::default().title(" NET INFO / LOG ")
-        .borders(Borders::ALL).border_style(t.border()).style(t.normal());
+            .borders(Borders::ALL).border_style(t.border()).style(t.normal());
         let inner = blk.inner(area);
         f.render_widget(blk, area);
         // Show logo centred in the empty panel
@@ -1666,7 +1664,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
                 };
                 f.render_widget(
                     Paragraph::new(Span::styled(*line, color)),
-                                Rect { x: lx, y: row, width: logo_w.min(inner.width), height: 1 },
+                    Rect { x: lx, y: row, width: logo_w.min(inner.width), height: 1 },
                 );
             }
             let hint_y = ly + logo_h + 1;
@@ -1675,14 +1673,14 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
                 let hx = inner.x + inner.width.saturating_sub(hint.len() as u16) / 2;
                 f.render_widget(
                     Paragraph::new(Span::styled(hint, t.dim())),
-                                Rect { x: hx, y: hint_y, width: inner.width, height: 1 },
+                    Rect { x: hx, y: hint_y, width: inner.width, height: 1 },
                 );
             }
         } else {
             f.render_widget(Paragraph::new(vec![
                 Line::from(Span::styled("No net selected.", t.dim())),
-                                           Line::from(""),
-                                           Line::from(Span::styled("Add or select a net on the left.", t.dim())),
+                Line::from(""),
+                Line::from(Span::styled("Add or select a net on the left.", t.dim())),
             ]).style(t.normal()), inner);
         }
         return;
@@ -1691,9 +1689,9 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let has_club= app.net().map_or(false,|n|!n.club.is_empty());
     // info height: base 4 rows + 1 if digital + 1 if club + 2 (borders)
     let info_h = 4u16
-    + if is_dig   {1} else {0}
-    + if has_club {1} else {0}
-    + 2;
+        + if is_dig   {1} else {0}
+        + if has_club {1} else {0}
+        + 2;
     // Split: info bar | sessions list | log (log only visible when Focus::Log)
     let show_log = app.focus == Focus::Log;
     let avail = area.height.saturating_sub(info_h);
@@ -1726,7 +1724,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
 fn draw_net_info(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let net = match app.net() { Some(n)=>n, None=>return };
     let blk = Block::default().title(" NET INFO ")
-    .borders(Borders::ALL).border_style(t.border()).style(t.normal());
+        .borders(Borders::ALL).border_style(t.border()).style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
     if inner.height==0 { return; }
@@ -1734,38 +1732,38 @@ fn draw_net_info(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let ses_count = net.sessions.len();
     let ci_count  = net.total_checkins();
     let count_str = format!("{} session{} / {} check-in{}",
-                            ses_count, if ses_count==1{""} else {"s"},
-                            ci_count,  if ci_count==1{""} else {"s"});
+        ses_count, if ses_count==1{""} else {"s"},
+        ci_count,  if ci_count==1{""} else {"s"});
     let mut rows: Vec<Line> = vec![];
 
     // Row: freq + offset
     rows.push(Line::from(vec![
         Span::styled("FREQ: ",t.cyan_s()),
-                         Span::styled(format!("{} MHz",net.freq),t.amber_s()),
-                         Span::raw("   "),
-                         Span::styled("OFFSET: ",t.cyan_s()),
-                         Span::styled(net.offset.clone(),t.blue_s()),
+        Span::styled(format!("{} MHz",net.freq),t.amber_s()),
+        Span::raw("   "),
+        Span::styled("OFFSET: ",t.cyan_s()),
+        Span::styled(net.offset.clone(),t.blue_s()),
     ]));
     // Row: PL only (date/time now per-session)
     rows.push(Line::from(vec![
         Span::styled("PL: ",t.cyan_s()),
-                         Span::styled(net.pl.clone(),t.blue_s()),
+        Span::styled(net.pl.clone(),t.blue_s()),
     ]));
     // Club row (if set)
     if !net.club.is_empty() {
         rows.push(Line::from(vec![
             Span::styled("CLUB: ",t.cyan_s()),
-                             Span::styled(net.club.clone(),t.pink_s()),
+            Span::styled(net.club.clone(),t.pink_s()),
         ]));
     }
     // Mode / voice row
     if net.digital {
         rows.push(Line::from(vec![
             Span::styled("MODE: ",t.cyan_s()),
-                             Span::styled(format!("◆ {}",net.mode),t.amber_s()),
-                             if !net.mode_notes.is_empty() {
-                                 Span::styled(format!("  ({})",net.mode_notes),t.dim())
-                             } else { Span::raw("") },
+            Span::styled(format!("◆ {}",net.mode),t.amber_s()),
+            if !net.mode_notes.is_empty() {
+                Span::styled(format!("  ({})",net.mode_notes),t.dim())
+            } else { Span::raw("") },
         ]));
     } else {
         rows.push(Line::from(Span::styled("VOICE NET",t.dim())));
@@ -1774,24 +1772,24 @@ fn draw_net_info(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let badge = if net.digital {" ◆ DIGITAL"} else {""};
     let pad = inner.width.saturating_sub(
         (net.name.len()+badge.len()+count_str.len()+2) as u16) as usize;
-        rows.push(Line::from(vec![
-            Span::styled(net.name.clone(),t.green_s()),
-                             Span::styled(badge,t.amber_s()),
-                             Span::raw(" ".repeat(pad)),
-                             Span::styled(count_str,t.amber_s()),
-        ]));
+    rows.push(Line::from(vec![
+        Span::styled(net.name.clone(),t.green_s()),
+        Span::styled(badge,t.amber_s()),
+        Span::raw(" ".repeat(pad)),
+        Span::styled(count_str,t.amber_s()),
+    ]));
 
-        f.render_widget(Paragraph::new(rows).style(t.normal()), inner);
+    f.render_widget(Paragraph::new(rows).style(t.normal()), inner);
 }
 
 fn draw_sessions(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let focused = app.focus == Focus::Sessions;
     let ttl = if focused { "▶ SESSIONS" } else { " SESSIONS" };
     let blk = Block::default()
-    .title(Span::styled(ttl, if focused { t.bold() } else { t.dim() }))
-    .borders(Borders::ALL).border_type(BorderType::Plain)
-    .border_style(if focused { t.borderf() } else { t.border() })
-    .style(t.normal());
+        .title(Span::styled(ttl, if focused { t.bold() } else { t.dim() }))
+        .borders(Borders::ALL).border_type(BorderType::Plain)
+        .border_style(if focused { t.borderf() } else { t.border() })
+        .style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
 
@@ -1800,15 +1798,15 @@ fn draw_sessions(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     if net.sessions.is_empty() {
         f.render_widget(Paragraph::new(vec![
             Line::from(Span::styled("No sessions yet.", t.dim())),
-                                       Line::from(Span::styled("Press [n] to start a new session.", t.dim())),
+            Line::from(Span::styled("Press [n] to start a new session.", t.dim())),
         ]).style(t.normal()), inner);
     } else {
         let items: Vec<ListItem> = net.sessions.iter().map(|s| {
             ListItem::new(Span::styled(s.label(), t.normal()))
         }).collect();
         let list = List::new(items)
-        .highlight_style(if focused { t.sel() } else { t.bold() })
-        .highlight_symbol("► ");
+            .highlight_style(if focused { t.sel() } else { t.bold() })
+            .highlight_symbol("► ");
         f.render_stateful_widget(list, inner, &mut app.ses_ls);
     }
 
@@ -1818,10 +1816,10 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let focused = app.focus == Focus::Log;
     let ttl = if focused{"▶ CHECK-IN LOG"}else{" CHECK-IN LOG"};
     let blk = Block::default()
-    .title(Span::styled(ttl,if focused{t.bold()}else{t.dim()}))
-    .borders(Borders::ALL).border_type(BorderType::Plain)
-    .border_style(if focused{t.borderf()}else{t.border()})
-    .style(t.normal());
+        .title(Span::styled(ttl,if focused{t.bold()}else{t.dim()}))
+        .borders(Borders::ALL).border_type(BorderType::Plain)
+        .border_style(if focused{t.borderf()}else{t.border()})
+        .style(t.normal());
     let inner = blk.inner(area);
     f.render_widget(blk, area);
     if inner.height<3 { return; }
@@ -1829,13 +1827,13 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     let hdr = Rect{y:inner.y,height:1,..inner};
     f.render_widget(Paragraph::new(Line::from(vec![
         Span::styled(format!("{:>3} ","#"),        t.bold()),
-                                              Span::styled(format!("{:<7}","TIME"),      t.bold()),
-                                              Span::styled(format!("{:<13}","CALLSIGN"), t.bold()),
-                                              Span::styled(format!("{:<20}","NAME"),     t.bold()),
-                                              Span::styled("REMARKS",                    t.bold()),
+        Span::styled(format!("{:<7}","TIME"),      t.bold()),
+        Span::styled(format!("{:<13}","CALLSIGN"), t.bold()),
+        Span::styled(format!("{:<20}","NAME"),     t.bold()),
+        Span::styled("REMARKS",                    t.bold()),
     ])), hdr);
     f.render_widget(Block::default().borders(Borders::BOTTOM).border_style(t.border()),
-                    Rect{y:inner.y+1,height:1,..inner});
+        Rect{y:inner.y+1,height:1,..inner});
 
     let list_area = Rect{y:inner.y+2,height:inner.height.saturating_sub(3),..inner};
 
@@ -1847,8 +1845,8 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
     }
 
     let checkins: Vec<CheckIn> = app.active_session()
-    .map(|s| s.checkins.clone())
-    .unwrap_or_default();
+        .map(|s| s.checkins.clone())
+        .unwrap_or_default();
 
     if checkins.is_empty() {
         f.render_widget(Paragraph::new(
@@ -1863,16 +1861,16 @@ fn draw_log(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
         let nm  = if ci.name.is_empty(){"—"}else{&ci.name};
         ListItem::new(Line::from(vec![
             Span::styled(format!("{:>3} ",i+1),        t.dim()),
-                                 Span::styled(format!("{:<7}",ci.time),     t.time_s()),
-                                 Span::styled(format!("{:<13}",ci.callsign),t.call()),
-                                 Span::styled(format!("{:<20}",nm),         t.normal()),
-                                 Span::styled(rem.to_string(),               t.dim()),
+            Span::styled(format!("{:<7}",ci.time),     t.time_s()),
+            Span::styled(format!("{:<13}",ci.callsign),t.call()),
+            Span::styled(format!("{:<20}",nm),         t.normal()),
+            Span::styled(rem.to_string(),               t.dim()),
         ]))
     }).collect();
 
     let list = List::new(items)
-    .highlight_style(if focused{t.sel()}else{t.bold()})
-    .highlight_symbol("► ");
+        .highlight_style(if focused{t.sel()}else{t.bold()})
+        .highlight_symbol("► ");
     f.render_stateful_widget(list, list_area, &mut app.log_ls);
 
 }
@@ -1945,7 +1943,7 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         };
         f.render_widget(
             Paragraph::new(Span::styled(*line, color)),
-                        Rect { x: logo_x, y: row, width: logo_w.min(area.width), height: 1 },
+            Rect { x: logo_x, y: row, width: logo_w.min(area.width), height: 1 },
         );
     }
 
@@ -1956,14 +1954,14 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     let r = centered(form_w, form_h, Rect {
         y: form_y,
         height: area.height.saturating_sub(form_y - area.y),
-                     ..area
+        ..area
     });
     if r.height < 4 { return; }
     f.render_widget(Clear, r);
     let blk = Block::default()
-    .title(Span::styled(" OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
-    .borders(Borders::ALL).border_style(t.pink_s())
-    .style(t.normal());
+        .title(Span::styled(" OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
+        .borders(Borders::ALL).border_style(t.pink_s())
+        .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -1972,15 +1970,15 @@ fn draw_operator_splash(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         Line::from(Span::styled("Operator Callsign:", t.cyan_s())),
         Line::from(Span::styled(
             format!(" {}{}", d.fields[OF_CALL], if d.focus==OF_CALL{"_"}else{""}),
-                if d.focus==OF_CALL{t.sel()}else{t.normal()})),
-                    Line::from(""),
-                    Line::from(Span::styled("Operator Name:", t.cyan_s())),
-                    Line::from(Span::styled(
-                        format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
-                            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
-                                Line::from(""),
-                                Line::from(Span::styled(
-                                    "[ENTER] next/confirm", t.dim())),
+            if d.focus==OF_CALL{t.sel()}else{t.normal()})),
+        Line::from(""),
+        Line::from(Span::styled("Operator Name:", t.cyan_s())),
+        Line::from(Span::styled(
+            format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
+            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
+        Line::from(""),
+        Line::from(Span::styled(
+            "[ENTER] next/confirm", t.dim())),
     ];
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
@@ -1989,9 +1987,9 @@ fn draw_operator_edit(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
     let r = centered(56, 14, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-    .title(Span::styled(" EDIT OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
-    .borders(Borders::ALL).border_style(t.pink_s())
-    .style(t.normal());
+        .title(Span::styled(" EDIT OPERATOR PROFILE ", t.pink_s().add_modifier(Modifier::BOLD)))
+        .borders(Borders::ALL).border_style(t.pink_s())
+        .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -2000,41 +1998,39 @@ fn draw_operator_edit(f: &mut Frame, area: Rect, d: &OperatorDlg, t: &Theme) {
         Line::from(Span::styled("Operator Callsign:", t.cyan_s())),
         Line::from(Span::styled(
             format!(" {}{}", d.fields[OF_CALL], if d.focus==OF_CALL{"_"}else{""}),
-                if d.focus==OF_CALL{t.sel()}else{t.normal()})),
-                    Line::from(""),
-                    Line::from(Span::styled("Operator Name:", t.cyan_s())),
-                    Line::from(Span::styled(
-                        format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
-                            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
-                                Line::from(""),
-                                Line::from(""),
-                                Line::from(Span::styled(
-                                    "[↑↓/ENTER] navigate  [ENTER on Name] confirm  [ESC] cancel",
-                                    t.dim())),
+            if d.focus==OF_CALL{t.sel()}else{t.normal()})),
+        Line::from(""),
+        Line::from(Span::styled("Operator Name:", t.cyan_s())),
+        Line::from(Span::styled(
+            format!(" {}{}", d.fields[OF_NAME], if d.focus==OF_NAME{"_"}else{""}),
+            if d.focus==OF_NAME{t.sel()}else{t.normal()})),
+        Line::from(""),
+        Line::from(""),
+        Line::from(Span::styled(
+            "[↑↓/ENTER] navigate  [ENTER on Name] confirm  [ESC] cancel",
+            t.dim())),
     ];
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
 
 fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
     let title = if d.mode==NdMode::Add {" ADD NET "} else {" EDIT NET "};
-    let dh = 30u16 + if d.digital {6} else {0};
+    let dh = 24u16 + if d.digital {6} else {0};
     let r = centered(66, dh, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(title,t.bold()))
-    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
     // labels and field indices aligned with NF_* constants
-    // fields array: [name, club, freq, offset, pl, date, time]
+    // fields array: [name, club, freq, offset, pl]
     let field_defs: &[(&str, usize)] = &[
         ("Net Name",          NF_NAME),
         ("Club / Association",NF_CLUB),
         ("Frequency (MHz)",   NF_FREQ),
         ("Offset",            NF_OFFSET),
         ("PL Tone (Hz)",      NF_PL),
-        ("Date (YYYY-MM-DD)", NF_DATE),
-        ("Time (HH:MM)",      NF_TIME),
     ];
 
     let mut lines: Vec<Line> = vec![Line::from("")];
@@ -2056,8 +2052,8 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
     let ta = if d.focus==NF_TOGGLE{t.sel()}else{t.normal()};
     lines.push(Line::from(vec![
         Span::styled("  [DIGITAL NET]: ",ta),
-                          Span::styled(tv, tc.add_modifier(Modifier::BOLD)),
-                          Span::styled("  (SPACE to toggle)",t.dim()),
+        Span::styled(tv, tc.add_modifier(Modifier::BOLD)),
+        Span::styled("  (SPACE to toggle)",t.dim()),
     ]));
     lines.push(Line::from(""));
     if d.digital {
@@ -2067,13 +2063,13 @@ fn draw_net_dlg(f: &mut Frame, area: Rect, d: &NetDlg, t: &Theme) {
         let mh = if d.focus==NF_MODE{"  [ENTER to open picker]"}else{""};
         lines.push(Line::from(vec![
             Span::styled(format!(" ▶ {}",cm),ma),
-                              Span::styled(mh,t.dim()),
+            Span::styled(mh,t.dim()),
         ]));
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled("Mode Notes / Params:",t.cyan_s())));
         lines.push(Line::from(Span::styled(
             format!(" {}{}",&d.notes,if d.focus==NF_NOTES{"_"}else{""}),
-                if d.focus==NF_NOTES{t.sel()}else{t.normal()})));
+            if d.focus==NF_NOTES{t.sel()}else{t.normal()})));
         lines.push(Line::from(""));
     }
     lines.push(Line::from(Span::styled(
@@ -2085,14 +2081,14 @@ fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
     let has_comp = !d.comp_labels.is_empty();
     let comp_h   = if has_comp { d.comp_labels.len().min(6) as u16 + 2 } else { 0 };
     let dh = 18u16 + comp_h;
-    let r  = centered(58, dh, area);
+    let r  = centered(62, dh, area);
     f.render_widget(Clear, r);
 
     let title = if d.fcc_pending { " ADD CHECK-IN  [Searching…] " } else { " ADD CHECK-IN " };
     let title_style = if d.fcc_pending { t.amber_s() } else { t.bold() };
     let blk = Block::default()
-    .title(Span::styled(title, title_style))
-    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+        .title(Span::styled(title, title_style))
+        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -2104,7 +2100,7 @@ fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
         lines.push(Line::from(Span::styled(format!("{}:", lbl), t.cyan_s())));
         let cur = if d.focus == i { "_" } else { "" };
         lines.push(Line::from(Span::styled(format!(" {}{}", val, cur),
-                                           if d.focus == i { t.sel() } else { t.normal() })));
+            if d.focus == i { t.sel() } else { t.normal() })));
         lines.push(Line::from(""));
         // Insert completion dropdown right after the callsign field
         if i == 0 && has_comp {
@@ -2112,10 +2108,10 @@ fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
                 let is_sel = d.comp_sel == Some(ci);
                 lines.push(Line::from(vec![
                     Span::styled("  ", t.dim()),
-                                      Span::styled(
-                                          format!("{:<50}", lbl),
-                                              if is_sel { t.sel() } else { t.dim() },
-                                      ),
+                    Span::styled(
+                        format!("{:<50}", lbl),
+                        if is_sel { t.sel() } else { t.dim() },
+                    ),
                 ]));
             }
             lines.push(Line::from(Span::styled(
@@ -2125,7 +2121,7 @@ fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
     }
 
     lines.push(Line::from(Span::styled(
-        "[↑↓] navigate  [TAB] complete/search  [ENTER] confirm  [ESC] cancel",
+        "[↑↓] nav  [TAB] search  [ENTER] confirm  [ESC] cancel",
         t.dim())));
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
@@ -2136,22 +2132,22 @@ fn draw_picker(f: &mut Frame, area: Rect, p: &ModePick, t: &Theme) {
     let r   = centered((mw+10) as u16, (vis+4) as u16, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(" SELECT DIGITAL MODE ",t.bold()))
-    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
     let items: Vec<ListItem> = DIGITAL_MODES.iter().enumerate()
-    .skip(p.offset).take(vis)
-    .map(|(i,m)| {
-        if i==p.sel {
-            ListItem::new(Line::from(vec![
-                Span::styled("▶ ",t.amber_s()),
-                                     Span::styled(*m,t.sel()),
-            ]))
-        } else {
-            ListItem::new(Span::styled(format!("  {}",m),t.normal()))
-        }
-    }).collect();
+        .skip(p.offset).take(vis)
+        .map(|(i,m)| {
+            if i==p.sel {
+                ListItem::new(Line::from(vec![
+                    Span::styled("▶ ",t.amber_s()),
+                    Span::styled(*m,t.sel()),
+                ]))
+            } else {
+                ListItem::new(Span::styled(format!("  {}",m),t.normal()))
+            }
+        }).collect();
 
     let mut ls = ListState::default();
     ls.select(Some(p.sel.saturating_sub(p.offset)));
@@ -2176,9 +2172,9 @@ fn draw_export_dlg(f: &mut Frame, area: Rect, d: &ExportDlg, t: &Theme) {
     let r  = centered(dw, dh, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-    .title(Span::styled(" SAVE EXPORT — Enter filename ", t.bold()))
-    .borders(Borders::ALL).border_style(t.bold())
-    .style(t.normal());
+        .title(Span::styled(" SAVE EXPORT — Enter filename ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -2205,24 +2201,24 @@ fn draw_theme_picker(f: &mut Frame, area: Rect, d: &ThemePickerDlg, t: &Theme) {
     let r  = centered(dw.min(area.width), dh.min(area.height), area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-    .title(Span::styled(" SELECT THEME ", t.bold()))
-    .borders(Borders::ALL).border_style(t.bold())
-    .style(t.normal());
+        .title(Span::styled(" SELECT THEME ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
     let items: Vec<ListItem> = d.themes.iter().enumerate()
-    .skip(d.offset).take(vis)
-    .map(|(i, th)| {
-        if i == d.sel {
-            ListItem::new(Line::from(vec![
-                Span::styled("▶ ", t.amber_s()),
-                                     Span::styled(th.name.clone(), t.sel()),
-            ]))
-        } else {
-            ListItem::new(Span::styled(format!("  {}", th.name), t.normal()))
-        }
-    }).collect();
+        .skip(d.offset).take(vis)
+        .map(|(i, th)| {
+            if i == d.sel {
+                ListItem::new(Line::from(vec![
+                    Span::styled("▶ ", t.amber_s()),
+                    Span::styled(th.name.clone(), t.sel()),
+                ]))
+            } else {
+                ListItem::new(Span::styled(format!("  {}", th.name), t.normal()))
+            }
+        }).collect();
 
     let mut ls = ListState::default();
     ls.select(Some(d.sel.saturating_sub(d.offset)));
@@ -2237,9 +2233,9 @@ fn draw_theme_picker(f: &mut Frame, area: Rect, d: &ThemePickerDlg, t: &Theme) {
         f.render_widget(Paragraph::new(Span::styled("▼", t.dim())), bot);
     }
     let hint_area = Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1),
-        width: inner.width, height: 1 };
-        f.render_widget(Paragraph::new(Span::styled(
-            "[↑↓] scroll  [ENTER] apply  [ESC] cancel", t.dim())), hint_area);
+                           width: inner.width, height: 1 };
+    f.render_widget(Paragraph::new(Span::styled(
+        "[↑↓] scroll  [ENTER] apply  [ESC] cancel", t.dim())), hint_area);
 }
 
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
@@ -2248,9 +2244,9 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
     let r  = centered(dw, dh, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-    .title(Span::styled(" KEY BINDINGS ", t.bold()))
-    .borders(Borders::ALL).border_style(t.bold())
-    .style(t.normal());
+        .title(Span::styled(" KEY BINDINGS ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
@@ -2259,7 +2255,7 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
     ]);
     let entry = |key: &str, desc: &str| Line::from(vec![
         Span::styled(format!("  {:<18}", key), t.amber_s()),
-                                                   Span::styled(desc.to_string(),         t.normal()),
+        Span::styled(desc.to_string(),         t.normal()),
     ]);
     let blank = || Line::from("");
 
@@ -2304,14 +2300,14 @@ fn draw_quit_confirm(f: &mut Frame, area: Rect, t: &Theme) {
     let r = centered(24, 5, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
-    .title(Span::styled(" QUIT ", t.bold()))
-    .borders(Borders::ALL).border_style(t.bold())
-    .style(t.normal());
+        .title(Span::styled(" QUIT ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
     f.render_widget(Paragraph::new(vec![
         Line::from(""),
-                                   Line::from(Span::styled("  [Y] Yes   [N] No  ", t.normal())),
+        Line::from(Span::styled("  [Y] Yes   [N] No  ", t.normal())),
     ]).alignment(Alignment::Center).style(t.normal()), inner);
 }
 
@@ -2320,14 +2316,14 @@ fn draw_confirm(f: &mut Frame, area: Rect, msg: &str, t: &Theme) {
     let r = centered(dw, 7, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(" CONFIRM ",t.red_s()))
-    .borders(Borders::ALL).border_style(t.red_s()).style(t.normal());
+        .borders(Borders::ALL).border_style(t.red_s()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
     f.render_widget(Paragraph::new(vec![
         Line::from(""),
-                                   Line::from(Span::styled(msg,t.amber_s())),
-                                   Line::from(""),
-                                   Line::from(Span::styled("[Y] Yes   [N / ESC] No",t.dim())),
+        Line::from(Span::styled(msg,t.amber_s())),
+        Line::from(""),
+        Line::from(Span::styled("[Y] Yes   [N / ESC] No",t.dim())),
     ]).alignment(Alignment::Center).style(t.normal()), inner);
 }
 
@@ -2336,13 +2332,13 @@ fn draw_msg(f: &mut Frame, area: Rect, title: &str, msg: &str, t: &Theme) {
     let r = centered(dw, 7, area);
     f.render_widget(Clear, r);
     let blk = Block::default().title(Span::styled(format!(" {} ",title),t.green_s()))
-    .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
+        .borders(Borders::ALL).border_style(t.bold()).style(t.normal());
     let inner = blk.inner(r);
     f.render_widget(blk, r);
     f.render_widget(Paragraph::new(vec![
         Line::from(""),
-                                   Line::from(Span::styled(msg,t.green_s())),
-                                   Line::from(""),
-                                   Line::from(Span::styled("Press any key...",t.dim())),
+        Line::from(Span::styled(msg,t.green_s())),
+        Line::from(""),
+        Line::from(Span::styled("Press any key...",t.dim())),
     ]).alignment(Alignment::Center).style(t.normal()), inner);
 }
