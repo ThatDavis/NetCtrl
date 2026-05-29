@@ -876,7 +876,7 @@ fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) 
         .sum::<u16>()
         .saturating_add((text.chars().count().saturating_sub(1) as u16) * gap);
 
-    let start_x = area.x + area.width.saturating_sub(total_w) / 2;
+    let start_x = area.x + area.width.saturating_sub(total_w) / 2 + 1;
     let start_y = area.y + area.height.saturating_sub(digit_h) / 2;
 
     let mut x = start_x;
@@ -958,7 +958,8 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         width: r.width,
         height: r.height - 2,
     };
-    let digit_style = Style::default().fg(t.fg()).add_modifier(Modifier::BOLD);
+    let digit_fg = if secs <= 60 { t.amber() } else { t.fg() };
+    let digit_style = Style::default().fg(digit_fg).add_modifier(Modifier::BOLD);
     draw_big_text(f, time_area, &time_str, digit_style, 2);
 }
 
