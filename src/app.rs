@@ -3,7 +3,7 @@ use std::time::Instant;
 use chrono::Utc;
 use ratatui::widgets::ListState;
 
-use crate::dialogs::{Modal, OperatorDlg, Screen};
+use crate::dialogs::{CountdownState, Modal, OperatorDlg, Screen};
 use crate::models::{AppData, Net, Session};
 use crate::persistence::load_data;
 use crate::theme::{all_themes, theme_catppuccin_mocha, Theme};
@@ -25,6 +25,8 @@ pub struct App {
     pub panel_w:    u16,
     pub ses_pane_h: u16,   // height of sessions pane when log is visible; resizable Ctrl+↑/↓
     pub theme:      Theme,
+    /// Active countdown alert for an upcoming scheduled session.
+    pub countdown:  Option<CountdownState>,
 }
 impl App {
     pub fn new() -> Self {
@@ -53,6 +55,7 @@ impl App {
             panel_w: 30,
             ses_pane_h: 8,
             theme,
+            countdown: None,
         }
     }
     pub fn tick(&mut self) { self.clock = Utc::now().format("%H:%M:%S UTC").to_string(); }

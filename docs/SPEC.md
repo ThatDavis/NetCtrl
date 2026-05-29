@@ -69,21 +69,21 @@ NetCtrl is a terminal TUI for logging amateur radio net check-ins. Operators man
 ### Features
 
 #### Feature: Scheduled Net Sessions
-**Status:** Planned
+**Status:** Complete
 **Description:** When creating a session, present a modal with two options: "Create Now" (default) or "Schedule for Later". Scheduled sessions store a target datetime and persist to disk. When the app is within 5 minutes of a scheduled session's start time, an alert overlay appears in the sessions pane showing a countdown timer with diagonal striped background. When the countdown reaches zero, the session auto-opens and the add-checkin dialog appears.
 **Acceptance Criteria:**
-- [ ] Pressing `n` in Sessions/Log focus opens a session-creation modal instead of immediately creating a session
-- [ ] Modal has "Create Now" as the default/primary option
-- [ ] Modal has "Schedule for Later" as a secondary option with datetime input
-- [ ] Scheduled sessions persist in `~/.netcontrol_data.json`
-- [ ] Scheduled sessions display in the session list with an indicator (e.g., "SCHEDULED")
-- [ ] When current time is within 5 minutes of a scheduled session start, an alert overlay appears
-- [ ] Overlay shows "ALERT" header, large countdown timer (MM:SS), and "NET STARTING" footer
-- [ ] Overlay has diagonal stripe pattern background using the active theme's accent colours
-- [ ] Countdown updates every second
-- [ ] When countdown reaches zero, the scheduled session is opened (entered) automatically
-- [ ] When countdown reaches zero, the add-checkin dialog (`CiDlg`) opens automatically
-- [ ] If multiple sessions are scheduled within the same 5-minute window, alert for the nearest one
+- [x] Pressing `n` in Sessions/Log focus opens a session-creation modal instead of immediately creating a session
+- [x] Modal has "Create Now" as the default/primary option
+- [x] Modal has "Schedule for Later" as a secondary option with datetime input
+- [x] Scheduled sessions persist in `~/.netcontrol_data.json`
+- [x] Scheduled sessions display in the session list with an indicator (e.g., "SCHEDULED")
+- [x] When current time is within 5 minutes of a scheduled session start, an alert overlay appears
+- [x] Overlay shows "ALERT" header, large countdown timer (MM:SS), and "NET STARTING" footer
+- [x] Overlay has diagonal stripe pattern background using the active theme's accent colours
+- [x] Countdown updates every second
+- [x] When countdown reaches zero, the scheduled session is opened (entered) automatically
+- [x] When countdown reaches zero, the add-checkin dialog (`CiDlg`) opens automatically
+- [x] If multiple sessions are scheduled within the same 5-minute window, alert for the nearest one
 
 ## Non-Functional Requirements
 

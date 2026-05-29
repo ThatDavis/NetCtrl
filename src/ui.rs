@@ -9,9 +9,10 @@ use ratatui::{
 use crate::app::{App, Focus};
 use crate::dialogs::{
     CiDlg, ExportDlg, Modal, ModePick, NetDlg, NdMode,
-    OperatorDlg, SessionDlg, ThemePickerDlg,
+    OperatorDlg, SessionCreateDlg, SessionCreateMode, SessionDlg, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,
+    SCF_MODE, SCF_DATE, SCF_TIME,
 };
 use crate::models::{CheckIn, DIGITAL_MODES, LOGO};
 use crate::theme::Theme;
@@ -38,6 +39,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     draw_body(f, vlay[1], app, t);
     draw_status(f, vlay[2], t);
     draw_modal(f, area, app, t);
+    draw_countdown_overlay(f, area, app, t);
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -383,6 +385,7 @@ fn draw_modal(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         Modal::QuitConfirm    => draw_quit_confirm(f, area, t),
         Modal::Help           => draw_help(f, area, t),
         Modal::Session(d)     => draw_session_dlg(f, area, d, t),
+        Modal::SessionCreate(d) => draw_session_create_dlg(f, area, d, t),
     }
 }
 
@@ -747,6 +750,111 @@ fn draw_session_dlg(f: &mut Frame, area: Rect, d: &SessionDlg, t: &Theme) {
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
 
+fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &Theme) {
+    let is_sched = d.mode == SessionCreateMode::Schedule;
+    let dh = if is_sched { 18 } else { 12 };
+    let r = centered(52, dh, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+        .title(Span::styled(" CREATE SESSION ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+
+    let mut lines: Vec<Line> = vec![Line::from("")];
+
+    // Mode selection
+    let now_sel = if d.mode == SessionCreateMode::CreateNow { "●" } else { "○" };
+    let sched_sel = if d.mode == SessionCreateMode::Schedule { "●" } else { "○" };
+    let now_style = if d.focus == SCF_MODE && d.mode == SessionCreateMode::CreateNow { t.sel() } else { t.normal() };
+    let sched_style = if d.focus == SCF_MODE && d.mode == SessionCreateMode::Schedule { t.sel() } else { t.normal() };
+
+    lines.push(Line::from(vec![
+        Span::styled(format!("  [{}] ", now_sel), now_style),
+        Span::styled("Create Now", if d.mode == SessionCreateMode::CreateNow { t.bold() } else { t.normal() }),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(format!("  [{}] ", sched_sel), sched_style),
+        Span::styled("Schedule for Later", if d.mode == SessionCreateMode::Schedule { t.bold() } else { t.normal() }),
+    ]));
+    lines.push(Line::from(""));
+
+    if is_sched {
+        let date_cur = if d.focus == SCF_DATE { "_" } else { "" };
+        let time_cur = if d.focus == SCF_TIME { "_" } else { "" };
+        lines.push(Line::from(Span::styled("Date (YYYY-MM-DD):", t.cyan_s())));
+        lines.push(Line::from(Span::styled(
+            format!(" {}{}", d.date, date_cur),
+            if d.focus == SCF_DATE { t.sel() } else { t.normal() },
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled("Time (HH:MM):", t.cyan_s())));
+        lines.push(Line::from(Span::styled(
+            format!(" {}{}", d.time, time_cur),
+            if d.focus == SCF_TIME { t.sel() } else { t.normal() },
+        )));
+        lines.push(Line::from(""));
+    }
+
+    lines.push(Line::from(Span::styled(
+        "[↑↓] navigate  [SPACE] toggle  [ENTER] confirm  [ESC] cancel", t.dim())));
+    f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
+}
+
+fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
+    let Some(ref cd) = app.countdown else { return };
+    // Only show when no modal is open (don't obstruct dialogs)
+    if !matches!(app.modal, Modal::None) { return; }
+
+    let now = chrono::Local::now();
+    let remaining = cd.target.signed_duration_since(now);
+    let secs = remaining.num_seconds().max(0);
+    let mins = secs / 60;
+    let secs_rem = secs % 60;
+    let time_str = format!("{}:{:02}", mins, secs_rem);
+
+    let w = 28u16;
+    let h = 11u16;
+    let r = centered(w, h, area);
+
+    // Fill background with striped pattern
+    let stripe_bg = t.accent();
+    let stripe_fg = t.bg();
+    let alt_bg = t.bg();
+    let alt_fg = t.accent();
+
+    for row in 0..r.height {
+        for col in 0..r.width {
+            let is_diag = ((row as i16) - (col as i16)).rem_euclid(2) == 0;
+            let cell = f.buffer_mut().get_mut(r.x + col, r.y + row);
+            if is_diag {
+                cell.set_symbol("▓");
+                cell.set_style(Style::default().fg(stripe_fg).bg(stripe_bg));
+            } else {
+                cell.set_symbol("░");
+                cell.set_style(Style::default().fg(alt_fg).bg(alt_bg));
+            }
+        }
+    }
+
+    // Header bar
+    let hdr = Rect { x: r.x + 1, y: r.y, width: r.width - 2, height: 1 };
+    f.render_widget(Paragraph::new(Span::styled("ALERT", t.bold().add_modifier(Modifier::BOLD))).alignment(Alignment::Center), hdr);
+
+    // Time display (large)
+    let time_area = Rect { x: r.x, y: r.y + 3, width: r.width, height: 3 };
+    f.render_widget(
+        Paragraph::new(Span::styled(&time_str, Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center),
+        time_area,
+    );
+
+    // Footer
+    let ftr = Rect { x: r.x + 1, y: r.y + r.height - 2, width: r.width - 2, height: 1 };
+    f.render_widget(Paragraph::new(Span::styled("NET STARTING", t.bold())).alignment(Alignment::Center), ftr);
+}
+
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
     let dw = 62u16.min(area.width);
     let dh = 36u16.min(area.height);
@@ -782,7 +890,7 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
         entry("d",               "Delete selected net"),
         blank(),
         section("SESSIONS"),
-        entry("n",               "New session for today"),
+        entry("n",               "Create or schedule new session"),
         entry("e",               "Edit session date / time"),
         entry("d",               "Delete selected session"),
         entry("Ctrl+↑ / Ctrl+↓", "Resize sessions pane"),

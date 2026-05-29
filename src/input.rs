@@ -4,9 +4,11 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use crate::app::{App, Focus};
 use crate::dialogs::{
     CiDlg, ConfirmDlg, ConfirmKind, ExportDlg, Modal, MsgDlg,
-    NetDlg, NdMode, ModePick, OperatorDlg, SessionDlg, ThemePickerDlg,
+    NetDlg, NdMode, ModePick, OperatorDlg, SessionDlg, SessionCreateDlg,
+    SessionCreateMode, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,
+    SCF_MODE, SCF_DATE, SCF_TIME,
 };
 use crate::models::{CheckIn, Net, Session, DIGITAL_MODES};
 use crate::persistence::{home_dir, new_id, save_data, utc_now};
@@ -16,11 +18,12 @@ use crate::theme::all_themes;
 pub fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
     // Text-input modals receive every character, including 'q' — dispatch first.
     match &app.modal {
-        Modal::Operator(_) => { on_operator_dlg(app, key); return true; }
-        Modal::Net(_)      => { on_net_dlg(app, key);      return true; }
-        Modal::Ci(_)       => { on_ci_dlg(app, key);       return true; }
-        Modal::Export(_)   => { on_export_dlg(app, key);   return true; }
-        Modal::Session(_)  => { on_session_dlg(app, key);  return true; }
+        Modal::Operator(_)     => { on_operator_dlg(app, key);     return true; }
+        Modal::Net(_)          => { on_net_dlg(app, key);          return true; }
+        Modal::Ci(_)           => { on_ci_dlg(app, key);           return true; }
+        Modal::Export(_)       => { on_export_dlg(app, key);       return true; }
+        Modal::Session(_)      => { on_session_dlg(app, key);      return true; }
+        Modal::SessionCreate(_)=> { on_session_create_dlg(app, key); return true; }
         _ => {}
     }
 
@@ -163,15 +166,7 @@ pub fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
             Focus::Nets => { app.modal = Modal::Net(NetDlg::new_add()); }
             Focus::Sessions | Focus::Log => {
                 if app.net().is_some() {
-                    if let Some(ni) = app.ni() {
-                        let ses = Session::new_today();
-                        app.data.nets[ni].sessions.push(ses);
-                        let last = app.data.nets[ni].sessions.len() - 1;
-                        app.ses_ls.select(Some(last));
-                        app.log_ls.select(None);
-                        app.focus = Focus::Sessions;
-                        save_data(&app.data);
-                    }
+                    app.modal = Modal::SessionCreate(SessionCreateDlg::new());
                 }
             }
         }
@@ -611,9 +606,106 @@ pub fn commit_session_dlg(app: &mut App) {
     }
     let (ni, si) = (d.ni, d.si);
     if let Some(ses) = app.data.nets.get_mut(ni).and_then(|n| n.sessions.get_mut(si)) {
-        ses.date     = date;
-        ses.net_time = net_time;
+        ses.date     = date.clone();
+        ses.net_time = net_time.clone();
+        // Keep scheduled_time in sync if this is a scheduled session
+        if ses.scheduled_time.is_some() {
+            ses.scheduled_time = Some(format!("{} {}", date, net_time));
+        }
     }
+    save_data(&app.data);
+    app.modal = Modal::None;
+}
+
+// ── Session creation dialog ───────────────────────────────────────────────────
+pub fn on_session_create_dlg(app: &mut App, key: KeyCode) {
+    if !matches!(app.modal, Modal::SessionCreate(_)) { return; }
+    match key {
+        KeyCode::Esc => { app.modal = Modal::None; }
+
+        KeyCode::Up => {
+            let Modal::SessionCreate(ref mut d) = app.modal else { return };
+            if d.focus > 0 { d.focus -= 1; }
+        }
+
+        KeyCode::Down | KeyCode::Enter | KeyCode::Tab => {
+            let Modal::SessionCreate(ref mut d) = app.modal else { return };
+            let max = d.max_focus();
+            if d.focus < max && key != KeyCode::Enter {
+                d.focus += 1;
+            } else if d.focus == max || (d.focus == SCF_MODE && d.mode == SessionCreateMode::CreateNow) {
+                commit_session_create(app);
+            } else {
+                d.focus += 1;
+            }
+        }
+
+        KeyCode::Char(' ') => {
+            let Modal::SessionCreate(ref mut d) = app.modal else { return };
+            if d.focus == SCF_MODE {
+                d.mode = match d.mode {
+                    SessionCreateMode::CreateNow => SessionCreateMode::Schedule,
+                    SessionCreateMode::Schedule => SessionCreateMode::CreateNow,
+                };
+            } else {
+                let max = d.max_len();
+                if let Some(f) = d.cur_mut() {
+                    if f.len() < max { f.push(' '); }
+                }
+            }
+        }
+
+        KeyCode::Backspace => {
+            let Modal::SessionCreate(ref mut d) = app.modal else { return };
+            if let Some(f) = d.cur_mut() { f.pop(); }
+        }
+
+        KeyCode::Delete => {
+            let Modal::SessionCreate(ref mut d) = app.modal else { return };
+            if let Some(f) = d.cur_mut() { f.clear(); }
+        }
+
+        KeyCode::Char(c) => {
+            let Modal::SessionCreate(ref mut d) = app.modal else { return };
+            if d.focus == SCF_MODE { return; }
+            let max = d.max_len();
+            if let Some(f) = d.cur_mut() { if f.len() < max { f.push(c); } }
+        }
+
+        _ => {}
+    }
+}
+
+pub fn commit_session_create(app: &mut App) {
+    let Modal::SessionCreate(ref d) = app.modal else { return };
+    let Some(ni) = app.ni() else { app.modal = Modal::None; return };
+
+    let ses = match d.mode {
+        SessionCreateMode::CreateNow => Session::new_today(),
+        SessionCreateMode::Schedule => {
+            let date = d.date.trim().to_string();
+            let time = d.time.trim().to_string();
+            if date.is_empty() || time.is_empty() {
+                if let Modal::SessionCreate(ref mut d) = app.modal {
+                    if date.is_empty() { d.focus = SCF_DATE; } else { d.focus = SCF_TIME; }
+                }
+                return;
+            }
+            Session {
+                id: new_id(),
+                date: date.clone(),
+                net_time: time.clone(),
+                checkins: vec![],
+                scheduled_time: Some(format!("{} {}", date, time)),
+            }
+        }
+    };
+
+    app.data.nets[ni].sessions.push(ses);
+    let last = app.data.nets[ni].sessions.len() - 1;
+    app.ses_ls.select(Some(last));
+    app.log_ls.select(None);
+    app.focus = Focus::Sessions;
     save_data(&app.data);
     app.modal = Modal::None;
 }
