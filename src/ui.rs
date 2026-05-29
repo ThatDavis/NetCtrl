@@ -854,19 +854,25 @@ fn big_digit_pattern(c: char) -> Option<&'static [&'static str]> {
         '0' => Some(BIG_0), '1' => Some(BIG_1), '2' => Some(BIG_2),
         '3' => Some(BIG_3), '4' => Some(BIG_4), '5' => Some(BIG_5),
         '6' => Some(BIG_6), '7' => Some(BIG_7), '8' => Some(BIG_8),
-        '9' => Some(BIG_9), ':' => Some(BIG_COLON),
+        '9' => Some(BIG_9), ':' => Some(BIG_COLON), ' ' => Some(&[" ", " ", " ", " ", " "]),
         _ => None,
+    }
+}
+
+fn char_width(c: char) -> u16 {
+    match c {
+        ':' => 1,
+        ' ' => 1,
+        _ => 4,
     }
 }
 
 /// Draw a string of big digits into `area`, preserving existing backgrounds.
 fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) {
-    let digit_w = 4u16;
     let digit_h = 5u16;
-    let colon_w = 1u16;
 
     let total_w: u16 = text.chars()
-        .map(|c| if c == ':' { colon_w } else { digit_w })
+        .map(char_width)
         .sum::<u16>()
         .saturating_add((text.chars().count().saturating_sub(1) as u16) * gap);
 
@@ -876,7 +882,7 @@ fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) 
     let mut x = start_x;
     for c in text.chars() {
         if let Some(pattern) = big_digit_pattern(c) {
-            let w = if c == ':' { colon_w } else { digit_w };
+            let w = char_width(c);
             for (row_idx, row_str) in pattern.iter().enumerate() {
                 for (col_idx, ch) in row_str.chars().enumerate() {
                     let cx = x + col_idx as u16;
@@ -904,16 +910,14 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let secs = remaining.num_seconds().max(0);
     let mins = secs / 60;
     let secs_rem = secs % 60;
-    let time_str = format!("{}:{:02}", mins, secs_rem);
+    let time_str = format!("{} :{:02}", mins, secs_rem);
 
-    // Minimum size for big digits; fall back to plain text if terminal is tiny
-    let use_big = area.width >= 26 && area.height >= 11;
-    let w = if use_big { 32u16 } else { 28u16 };
-    let h = if use_big { 13u16 } else { 11u16 };
+    let w = 32u16;
+    let h = 9u16;
     let r = centered(w, h, area);
 
-    // ── Solid header bar ──
-    let hdr_rect = Rect { x: r.x, y: r.y + 1, width: r.width, height: 1 };
+    // ── Solid header bar (flush with top) ──
+    let hdr_rect = Rect { x: r.x, y: r.y, width: r.width, height: 1 };
     for col in hdr_rect.x..hdr_rect.x + hdr_rect.width {
         let cell = f.buffer_mut().get_mut(col, hdr_rect.y);
         cell.set_symbol(" ");
@@ -925,8 +929,8 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         hdr_rect,
     );
 
-    // ── Solid footer bar ──
-    let ftr_rect = Rect { x: r.x, y: r.y + r.height - 2, width: r.width, height: 1 };
+    // ── Solid footer bar (flush with bottom) ──
+    let ftr_rect = Rect { x: r.x, y: r.y + r.height - 1, width: r.width, height: 1 };
     for col in ftr_rect.x..ftr_rect.x + ftr_rect.width {
         let cell = f.buffer_mut().get_mut(col, ftr_rect.y);
         cell.set_symbol(" ");
@@ -938,49 +942,24 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         ftr_rect,
     );
 
-    // ── Diagonal stripe background ──
-    for row in 2..(r.height - 2) {
+    // ── Middle area: solid dark background (no stripes) ──
+    for row in 1..(r.height - 1) {
         for col in 0..r.width {
-            let is_stripe = ((row + col) / 2) % 2 == 0;
             let cell = f.buffer_mut().get_mut(r.x + col, r.y + row);
-            if is_stripe {
-                cell.set_symbol("▓");
-                cell.set_style(Style::default().fg(t.bg()).bg(t.accent()));
-            } else {
-                cell.set_symbol("░");
-                cell.set_style(Style::default().fg(t.accent()).bg(t.bg()));
-            }
+            cell.set_symbol(" ");
+            cell.set_style(Style::default().bg(t.bg()));
         }
     }
 
-    // ── Time display ──
+    // ── Big digits ──
     let time_area = Rect {
         x: r.x,
-        y: r.y + 2,
+        y: r.y + 1,
         width: r.width,
-        height: r.height - 4,
+        height: r.height - 2,
     };
-
-    if use_big {
-        let digit_style = Style::default().fg(t.fg()).add_modifier(Modifier::BOLD);
-        draw_big_text(f, time_area, &time_str, digit_style, 1);
-    } else {
-        // Fallback for small terminals: bold centred text
-        for row in time_area.y..time_area.y + time_area.height {
-            for col in time_area.x..time_area.x + time_area.width {
-                let cell = f.buffer_mut().get_mut(col, row);
-                cell.set_symbol(" ");
-                cell.set_style(Style::default().bg(t.accent()));
-            }
-        }
-        f.render_widget(
-            Paragraph::new(Span::styled(
-                &time_str,
-                Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD),
-            )).alignment(Alignment::Center),
-            time_area,
-        );
-    }
+    let digit_style = Style::default().fg(t.fg()).add_modifier(Modifier::BOLD);
+    draw_big_text(f, time_area, &time_str, digit_style, 1);
 }
 
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
