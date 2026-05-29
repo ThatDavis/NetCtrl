@@ -1,0 +1,28 @@
+# Build output
+/target/
+
+# Rust
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+.DS_Store
+
+# LLM/Agent tooling
+AGENTS.md
+CLAUDE.md
+CURSOR.md
+.agent/
+.agents/
+.aider/
+.claude/
+.copilot/
+.cursor/
+.kimi/
+.opencode/
+.windsurf/
