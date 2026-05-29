@@ -760,32 +760,12 @@ fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
-    let inner_w = inner.width as usize;
-
-    // Helper: build a centred, full-width line for each option
-    let make_line = |label: &str, is_selected: bool| -> Line {
-        let prefix = if is_selected { "▶ " } else { "  " };
-        let text = format!("{}{}", prefix, label);
-        let pad = inner_w.saturating_sub(text.len());
-        let left = pad / 2;
-        let right = pad - left;
-        let full = format!("{}{}{}", " ".repeat(left), text, " ".repeat(right));
-        let style = if is_selected { t.sel() } else { t.normal() };
-        Line::from(Span::styled(full, style))
-    };
-
-    // Split inner area: options centred vertically, hint pinned to bottom
-    let options_h = 3u16;      // option + blank + option
+    // Vertical layout: options centred vertically, hint pinned to bottom
     let hint_h = 1u16;
+    let options_h = 3u16;      // option + gap + option
     let available = inner.height.saturating_sub(options_h + hint_h);
     let top_pad = available / 2;
 
-    let options_area = Rect {
-        x: inner.x,
-        y: inner.y + top_pad,
-        width: inner.width,
-        height: options_h,
-    };
     let hint_area = Rect {
         x: inner.x,
         y: inner.y + inner.height - hint_h,
@@ -793,12 +773,35 @@ fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &
         height: hint_h,
     };
 
-    let lines = vec![
-        make_line("Create Now", d.mode == SessionCreateMode::CreateNow),
-        Line::from(""),
-        make_line("Schedule for Later", d.mode == SessionCreateMode::Schedule),
+    // Render each option as a full-width row with centred text
+    let options = [
+        ("Create Now", d.mode == SessionCreateMode::CreateNow),
+        ("Schedule for Later", d.mode == SessionCreateMode::Schedule),
     ];
-    f.render_widget(Paragraph::new(lines).style(t.normal()), options_area);
+    for (i, (label, is_selected)) in options.iter().enumerate() {
+        let y = inner.y + top_pad + (i as u16) * 2;
+        let row_area = Rect {
+            x: inner.x,
+            y,
+            width: inner.width,
+            height: 1,
+        };
+        let prefix = if *is_selected { "▶ " } else { "  " };
+        let text = format!("{}{}", prefix, label);
+        let style = if *is_selected { t.sel() } else { t.normal() };
+
+        // Fill the entire row so the background reaches both borders
+        for col in row_area.x..row_area.x + row_area.width {
+            let cell = f.buffer_mut().get_mut(col, row_area.y);
+            cell.set_symbol(" ");
+            cell.set_style(style);
+        }
+        // Draw centred text on top
+        f.render_widget(
+            Paragraph::new(Span::styled(text, style)).alignment(Alignment::Center),
+            row_area,
+        );
+    }
 
     f.render_widget(
         Paragraph::new(Span::styled(
