@@ -63,13 +63,11 @@ fn update_countdown(app: &mut App) {
                 ses.scheduled_time = None;
                 save_data(&app.data);
             }
-            // Only auto-open if no modal is currently active
-            if matches!(app.modal, Modal::None) {
-                app.net_ls.select(Some(ni));
-                app.ses_ls.select(Some(si));
-                app.focus = Focus::Log;
-                app.modal = Modal::Ci(CiDlg::new());
-            }
+            // Auto-open the session and launch check-in dialog immediately
+            app.net_ls.select(Some(ni));
+            app.ses_ls.select(Some(si));
+            app.focus = Focus::Log;
+            app.modal = Modal::Ci(CiDlg::new());
             app.countdown = None;
         }
     }
