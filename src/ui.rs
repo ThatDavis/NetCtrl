@@ -760,21 +760,23 @@ fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
-    let mut lines: Vec<Line> = vec![Line::from("")];
+    let mut lines: Vec<Line> = vec![];
+    let inner_w = inner.width as usize;
 
-    let now_sel = if d.mode == SessionCreateMode::CreateNow { "▶" } else { "  " };
-    let sched_sel = if d.mode == SessionCreateMode::Schedule { "▶" } else { "  " };
-    let now_style = if d.mode == SessionCreateMode::CreateNow { t.sel() } else { t.normal() };
-    let sched_style = if d.mode == SessionCreateMode::Schedule { t.sel() } else { t.normal() };
+    // Helper: build a centred, full-width line for each option
+    let make_line = |label: &str, is_selected: bool| -> Line {
+        let prefix = if is_selected { "▶ " } else { "  " };
+        let text = format!("{}{}", prefix, label);
+        let pad = inner_w.saturating_sub(text.len());
+        let left = pad / 2;
+        let right = pad - left;
+        let full = format!("{}{}{}", " ".repeat(left), text, " ".repeat(right));
+        let style = if is_selected { t.sel() } else { t.normal() };
+        Line::from(Span::styled(full, style))
+    };
 
-    lines.push(Line::from(vec![
-        Span::styled(now_sel, t.amber_s()),
-        Span::styled(" Create Now", now_style),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled(sched_sel, t.amber_s()),
-        Span::styled(" Schedule for Later", sched_style),
-    ]));
+    lines.push(make_line("Create Now", d.mode == SessionCreateMode::CreateNow));
+    lines.push(make_line("Schedule for Later", d.mode == SessionCreateMode::Schedule));
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
         "[↑↓] select  [ENTER] confirm  [ESC] cancel", t.dim())));
