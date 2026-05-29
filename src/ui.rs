@@ -751,7 +751,7 @@ fn draw_session_dlg(f: &mut Frame, area: Rect, d: &SessionDlg, t: &Theme) {
 }
 
 fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &Theme) {
-    let r = centered(44, 9, area);
+    let r = centered(44, 10, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
         .title(Span::styled(" CREATE SESSION ", t.bold()))
@@ -760,7 +760,6 @@ fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &
     let inner = blk.inner(r);
     f.render_widget(blk, r);
 
-    let mut lines: Vec<Line> = vec![];
     let inner_w = inner.width as usize;
 
     // Helper: build a centred, full-width line for each option
@@ -775,12 +774,37 @@ fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &
         Line::from(Span::styled(full, style))
     };
 
-    lines.push(make_line("Create Now", d.mode == SessionCreateMode::CreateNow));
-    lines.push(make_line("Schedule for Later", d.mode == SessionCreateMode::Schedule));
-    lines.push(Line::from(""));
-    lines.push(Line::from(Span::styled(
-        "[↑↓] select  [ENTER] confirm  [ESC] cancel", t.dim())));
-    f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
+    // Split inner area: options centred vertically, hint pinned to bottom
+    let options_h = 3u16;      // option + blank + option
+    let hint_h = 1u16;
+    let available = inner.height.saturating_sub(options_h + hint_h);
+    let top_pad = available / 2;
+
+    let options_area = Rect {
+        x: inner.x,
+        y: inner.y + top_pad,
+        width: inner.width,
+        height: options_h,
+    };
+    let hint_area = Rect {
+        x: inner.x,
+        y: inner.y + inner.height - hint_h,
+        width: inner.width,
+        height: hint_h,
+    };
+
+    let lines = vec![
+        make_line("Create Now", d.mode == SessionCreateMode::CreateNow),
+        Line::from(""),
+        make_line("Schedule for Later", d.mode == SessionCreateMode::Schedule),
+    ];
+    f.render_widget(Paragraph::new(lines).style(t.normal()), options_area);
+
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            "[↑↓] select  [ENTER] confirm  [ESC] cancel", t.dim())),
+        hint_area,
+    );
 }
 
 fn draw_session_schedule_dlg(f: &mut Frame, area: Rect, d: &SessionScheduleDlg, t: &Theme) {
