@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
@@ -836,6 +836,64 @@ fn draw_session_schedule_dlg(f: &mut Frame, area: Rect, d: &SessionScheduleDlg, 
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
 
+// ── Big digit patterns (4 wide × 5 tall) ──────────────────────────────────────
+const BIG_0: &[&str] = &["████", "█  █", "█  █", "█  █", "████"];
+const BIG_1: &[&str] = &["   █", "  ██", "   █", "   █", "  ███"];
+const BIG_2: &[&str] = &["████", "   █", "████", "█   ", "████"];
+const BIG_3: &[&str] = &["████", "   █", "████", "   █", "████"];
+const BIG_4: &[&str] = &["█  █", "█  █", "████", "   █", "   █"];
+const BIG_5: &[&str] = &["████", "█   ", "████", "   █", "████"];
+const BIG_6: &[&str] = &["████", "█   ", "████", "█  █", "████"];
+const BIG_7: &[&str] = &["████", "   █", "  █ ", " █  ", " █  "];
+const BIG_8: &[&str] = &["████", "█  █", "████", "█  █", "████"];
+const BIG_9: &[&str] = &["████", "█  █", "████", "   █", "████"];
+const BIG_COLON: &[&str] = &[" ", "▓", " ", "▓", " "];
+
+fn big_digit_pattern(c: char) -> Option<&'static [&'static str]> {
+    match c {
+        '0' => Some(BIG_0), '1' => Some(BIG_1), '2' => Some(BIG_2),
+        '3' => Some(BIG_3), '4' => Some(BIG_4), '5' => Some(BIG_5),
+        '6' => Some(BIG_6), '7' => Some(BIG_7), '8' => Some(BIG_8),
+        '9' => Some(BIG_9), ':' => Some(BIG_COLON),
+        _ => None,
+    }
+}
+
+/// Draw a string of big digits into `area`, preserving existing backgrounds.
+fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) {
+    let digit_w = 4u16;
+    let digit_h = 5u16;
+    let colon_w = 1u16;
+
+    let total_w: u16 = text.chars()
+        .map(|c| if c == ':' { colon_w } else { digit_w })
+        .sum::<u16>()
+        .saturating_add((text.chars().count().saturating_sub(1) as u16) * gap);
+
+    let start_x = area.x + area.width.saturating_sub(total_w) / 2;
+    let start_y = area.y + area.height.saturating_sub(digit_h) / 2;
+
+    let mut x = start_x;
+    for c in text.chars() {
+        if let Some(pattern) = big_digit_pattern(c) {
+            let w = if c == ':' { colon_w } else { digit_w };
+            for (row_idx, row_str) in pattern.iter().enumerate() {
+                for (col_idx, ch) in row_str.chars().enumerate() {
+                    let cx = x + col_idx as u16;
+                    let cy = start_y + row_idx as u16;
+                    if cx < area.x + area.width && cy < area.y + area.height && ch != ' ' {
+                        let cell = f.buffer_mut().get_mut(cx, cy);
+                        let existing_bg = cell.style().bg.unwrap_or(style.bg.unwrap_or(Color::Reset));
+                        cell.set_symbol(&ch.to_string());
+                        cell.set_style(Style::default().fg(style.fg.unwrap_or(Color::Reset)).bg(existing_bg).add_modifier(Modifier::BOLD));
+                    }
+                }
+            }
+            x += w + gap;
+        }
+    }
+}
+
 fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let Some(ref cd) = app.countdown else { return };
     // Only show when no modal is open (don't obstruct dialogs)
@@ -848,8 +906,10 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let secs_rem = secs % 60;
     let time_str = format!("{}:{:02}", mins, secs_rem);
 
-    let w = 32u16;
-    let h = 12u16;
+    // Minimum size for big digits; fall back to plain text if terminal is tiny
+    let use_big = area.width >= 26 && area.height >= 11;
+    let w = if use_big { 32u16 } else { 28u16 };
+    let h = if use_big { 13u16 } else { 11u16 };
     let r = centered(w, h, area);
 
     // ── Solid header bar ──
@@ -893,24 +953,34 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         }
     }
 
-    // ── Time display (large, on a solid strip) ──
-    let time_y = r.y + 4;
-    let time_h = 3u16;
-    for row in time_y..time_y + time_h {
-        for col in r.x..r.x + r.width {
-            let cell = f.buffer_mut().get_mut(col, row);
-            cell.set_symbol(" ");
-            cell.set_style(Style::default().bg(t.accent()));
+    // ── Time display ──
+    let time_area = Rect {
+        x: r.x,
+        y: r.y + 2,
+        width: r.width,
+        height: r.height - 4,
+    };
+
+    if use_big {
+        let digit_style = Style::default().fg(t.fg()).add_modifier(Modifier::BOLD);
+        draw_big_text(f, time_area, &time_str, digit_style, 1);
+    } else {
+        // Fallback for small terminals: bold centred text
+        for row in time_area.y..time_area.y + time_area.height {
+            for col in time_area.x..time_area.x + time_area.width {
+                let cell = f.buffer_mut().get_mut(col, row);
+                cell.set_symbol(" ");
+                cell.set_style(Style::default().bg(t.accent()));
+            }
         }
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                &time_str,
+                Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD),
+            )).alignment(Alignment::Center),
+            time_area,
+        );
     }
-    let time_area = Rect { x: r.x, y: time_y, width: r.width, height: time_h };
-    f.render_widget(
-        Paragraph::new(Span::styled(
-            &time_str,
-            Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD),
-        )).alignment(Alignment::Center),
-        time_area,
-    );
 }
 
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
