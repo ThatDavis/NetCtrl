@@ -876,7 +876,7 @@ fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) 
         .sum::<u16>()
         .saturating_add((text.chars().count().saturating_sub(1) as u16) * gap);
 
-    let start_x = area.x + area.width.saturating_sub(total_w) / 2 + 1;
+    let start_x = area.x + (area.width.saturating_sub(total_w) / 2).saturating_sub(2);
     let start_y = area.y + area.height.saturating_sub(digit_h) / 2;
 
     let mut x = start_x;
