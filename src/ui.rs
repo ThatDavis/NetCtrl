@@ -9,10 +9,9 @@ use ratatui::{
 use crate::app::{App, Focus};
 use crate::dialogs::{
     CiDlg, ExportDlg, Modal, ModePick, NetDlg, NdMode,
-    OperatorDlg, SessionCreateDlg, SessionCreateMode, SessionDlg, ThemePickerDlg,
+    OperatorDlg, SessionCreateDlg, SessionCreateMode, SessionDlg, SessionScheduleDlg, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,
-    SCF_MODE, SCF_DATE, SCF_TIME,
 };
 use crate::models::{CheckIn, DIGITAL_MODES, LOGO};
 use crate::theme::Theme;
@@ -386,6 +385,7 @@ fn draw_modal(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         Modal::Help           => draw_help(f, area, t),
         Modal::Session(d)     => draw_session_dlg(f, area, d, t),
         Modal::SessionCreate(d) => draw_session_create_dlg(f, area, d, t),
+        Modal::SessionSchedule(d) => draw_session_schedule_dlg(f, area, d, t),
     }
 }
 
@@ -751,9 +751,7 @@ fn draw_session_dlg(f: &mut Frame, area: Rect, d: &SessionDlg, t: &Theme) {
 }
 
 fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &Theme) {
-    let is_sched = d.mode == SessionCreateMode::Schedule;
-    let dh = if is_sched { 18 } else { 12 };
-    let r = centered(52, dh, area);
+    let r = centered(44, 9, area);
     f.render_widget(Clear, r);
     let blk = Block::default()
         .title(Span::styled(" CREATE SESSION ", t.bold()))
@@ -764,48 +762,55 @@ fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &
 
     let mut lines: Vec<Line> = vec![Line::from("")];
 
-    // Mode selection
-    let now_sel = if d.mode == SessionCreateMode::CreateNow { "●" } else { "○" };
-    let sched_sel = if d.mode == SessionCreateMode::Schedule { "●" } else { "○" };
-    let now_style = if d.focus == SCF_MODE && d.mode == SessionCreateMode::CreateNow { t.sel() } else { t.normal() };
-    let sched_style = if d.focus == SCF_MODE && d.mode == SessionCreateMode::Schedule { t.sel() } else { t.normal() };
+    let now_sel = if d.mode == SessionCreateMode::CreateNow { "▶" } else { "  " };
+    let sched_sel = if d.mode == SessionCreateMode::Schedule { "▶" } else { "  " };
+    let now_style = if d.mode == SessionCreateMode::CreateNow { t.sel() } else { t.normal() };
+    let sched_style = if d.mode == SessionCreateMode::Schedule { t.sel() } else { t.normal() };
 
     lines.push(Line::from(vec![
-        Span::styled(format!("  [{}] ", now_sel), now_style),
-        Span::styled("Create Now", if d.mode == SessionCreateMode::CreateNow { t.bold() } else { t.normal() }),
+        Span::styled(now_sel, t.amber_s()),
+        Span::styled(" Create Now", now_style),
     ]));
     lines.push(Line::from(vec![
-        Span::styled(format!("  [{}] ", sched_sel), sched_style),
-        Span::styled("Schedule for Later", if d.mode == SessionCreateMode::Schedule { t.bold() } else { t.normal() }),
+        Span::styled(sched_sel, t.amber_s()),
+        Span::styled(" Schedule for Later", sched_style),
     ]));
     lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "[↑↓] select  [ENTER] confirm  [ESC] cancel", t.dim())));
+    f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
+}
 
-    if is_sched {
-        let date_cur = if d.focus == SCF_DATE { "_" } else { "" };
-        let time_cur = if d.focus == SCF_TIME { "_" } else { "" };
-        lines.push(Line::from(Span::styled("Date (YYYY-MM-DD):", t.cyan_s())));
+fn draw_session_schedule_dlg(f: &mut Frame, area: Rect, d: &SessionScheduleDlg, t: &Theme) {
+    let r = centered(48, 12, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+        .title(Span::styled(" SCHEDULE SESSION ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+
+    let labels = ["Date (YYYY-MM-DD)", "Time (HH:MM)"];
+    let mut lines: Vec<Line> = vec![Line::from("")];
+    for (i, lbl) in labels.iter().enumerate() {
+        lines.push(Line::from(Span::styled(format!("{}:", lbl), t.cyan_s())));
+        let cur = if d.focus == i { "_" } else { "" };
         lines.push(Line::from(Span::styled(
-            format!(" {}{}", d.date, date_cur),
-            if d.focus == SCF_DATE { t.sel() } else { t.normal() },
-        )));
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled("Time (HH:MM):", t.cyan_s())));
-        lines.push(Line::from(Span::styled(
-            format!(" {}{}", d.time, time_cur),
-            if d.focus == SCF_TIME { t.sel() } else { t.normal() },
+            format!(" {}{}", d.fields[i], cur),
+            if d.focus == i { t.sel() } else { t.normal() },
         )));
         lines.push(Line::from(""));
     }
-
     lines.push(Line::from(Span::styled(
-        "[↑↓] navigate  [SPACE] toggle  [ENTER] confirm  [ESC] cancel", t.dim())));
+        "[↑↓/ENTER] navigate  [ENTER] confirm  [ESC] cancel", t.dim())));
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
 
 fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let Some(ref cd) = app.countdown else { return };
     // Only show when no modal is open (don't obstruct dialogs)
-    if !matches!(app.modal, Modal::None) { return; }
+    if !matches!(app.modal, Modal::None) { return };
 
     let now = chrono::Local::now();
     let remaining = cd.target.signed_duration_since(now);
@@ -814,45 +819,69 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
     let secs_rem = secs % 60;
     let time_str = format!("{}:{:02}", mins, secs_rem);
 
-    let w = 28u16;
-    let h = 11u16;
+    let w = 32u16;
+    let h = 12u16;
     let r = centered(w, h, area);
 
-    // Fill background with striped pattern
-    let stripe_bg = t.accent();
-    let stripe_fg = t.bg();
-    let alt_bg = t.bg();
-    let alt_fg = t.accent();
+    // ── Solid header bar ──
+    let hdr_rect = Rect { x: r.x, y: r.y + 1, width: r.width, height: 1 };
+    for col in hdr_rect.x..hdr_rect.x + hdr_rect.width {
+        let cell = f.buffer_mut().get_mut(col, hdr_rect.y);
+        cell.set_symbol(" ");
+        cell.set_style(Style::default().bg(t.accent()));
+    }
+    f.render_widget(
+        Paragraph::new(Span::styled("ALERT", Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center),
+        hdr_rect,
+    );
 
-    for row in 0..r.height {
+    // ── Solid footer bar ──
+    let ftr_rect = Rect { x: r.x, y: r.y + r.height - 2, width: r.width, height: 1 };
+    for col in ftr_rect.x..ftr_rect.x + ftr_rect.width {
+        let cell = f.buffer_mut().get_mut(col, ftr_rect.y);
+        cell.set_symbol(" ");
+        cell.set_style(Style::default().bg(t.accent()));
+    }
+    f.render_widget(
+        Paragraph::new(Span::styled("NET STARTING", Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center),
+        ftr_rect,
+    );
+
+    // ── Diagonal stripe background ──
+    for row in 2..(r.height - 2) {
         for col in 0..r.width {
-            let is_diag = ((row as i16) - (col as i16)).rem_euclid(2) == 0;
+            let is_stripe = ((row + col) / 2) % 2 == 0;
             let cell = f.buffer_mut().get_mut(r.x + col, r.y + row);
-            if is_diag {
+            if is_stripe {
                 cell.set_symbol("▓");
-                cell.set_style(Style::default().fg(stripe_fg).bg(stripe_bg));
+                cell.set_style(Style::default().fg(t.bg()).bg(t.accent()));
             } else {
                 cell.set_symbol("░");
-                cell.set_style(Style::default().fg(alt_fg).bg(alt_bg));
+                cell.set_style(Style::default().fg(t.accent()).bg(t.bg()));
             }
         }
     }
 
-    // Header bar
-    let hdr = Rect { x: r.x + 1, y: r.y, width: r.width - 2, height: 1 };
-    f.render_widget(Paragraph::new(Span::styled("ALERT", t.bold().add_modifier(Modifier::BOLD))).alignment(Alignment::Center), hdr);
-
-    // Time display (large)
-    let time_area = Rect { x: r.x, y: r.y + 3, width: r.width, height: 3 };
+    // ── Time display (large, on a solid strip) ──
+    let time_y = r.y + 4;
+    let time_h = 3u16;
+    for row in time_y..time_y + time_h {
+        for col in r.x..r.x + r.width {
+            let cell = f.buffer_mut().get_mut(col, row);
+            cell.set_symbol(" ");
+            cell.set_style(Style::default().bg(t.accent()));
+        }
+    }
+    let time_area = Rect { x: r.x, y: time_y, width: r.width, height: time_h };
     f.render_widget(
-        Paragraph::new(Span::styled(&time_str, Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD)))
-            .alignment(Alignment::Center),
+        Paragraph::new(Span::styled(
+            &time_str,
+            Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD),
+        )).alignment(Alignment::Center),
         time_area,
     );
-
-    // Footer
-    let ftr = Rect { x: r.x + 1, y: r.y + r.height - 2, width: r.width - 2, height: 1 };
-    f.render_widget(Paragraph::new(Span::styled("NET STARTING", t.bold())).alignment(Alignment::Center), ftr);
 }
 
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {

@@ -251,47 +251,33 @@ impl SessionDlg {
 #[derive(Debug,PartialEq,Clone,Copy)]
 pub enum SessionCreateMode { CreateNow, Schedule }
 
-pub const SCF_MODE: usize = 0;
-pub const SCF_DATE: usize = 1;
-pub const SCF_TIME: usize = 2;
-
 #[derive(Debug)]
 pub struct SessionCreateDlg {
-    pub mode:  SessionCreateMode,
-    pub date:  String,
-    pub time:  String,
-    pub focus: usize,
+    pub mode: SessionCreateMode,
 }
 impl SessionCreateDlg {
     pub fn new() -> Self {
+        Self { mode: SessionCreateMode::CreateNow }
+    }
+}
+
+// ── Session schedule dialog (date/time entry) ─────────────────────────────────
+#[derive(Debug)]
+pub struct SessionScheduleDlg {
+    pub fields: [String; 2],   // 0 = date, 1 = net_time
+    pub focus:  usize,
+    pub ni:     usize,         // net index
+}
+impl SessionScheduleDlg {
+    pub fn new(ni: usize) -> Self {
         let now = chrono::Local::now();
         Self {
-            mode: SessionCreateMode::CreateNow,
-            date: now.format("%Y-%m-%d").to_string(),
-            time: now.format("%H:%M").to_string(),
-            focus: SCF_MODE,
+            fields: [now.format("%Y-%m-%d").to_string(), now.format("%H:%M").to_string()],
+            focus: 0, ni,
         }
     }
-    pub fn max_focus(&self) -> usize {
-        match self.mode {
-            SessionCreateMode::CreateNow => SCF_MODE,
-            SessionCreateMode::Schedule => SCF_TIME,
-        }
-    }
-    pub fn cur_mut(&mut self) -> Option<&mut String> {
-        match self.focus {
-            SCF_DATE => Some(&mut self.date),
-            SCF_TIME => Some(&mut self.time),
-            _ => None,
-        }
-    }
-    pub fn max_len(&self) -> usize {
-        match self.focus {
-            SCF_DATE => 12,
-            SCF_TIME => 6,
-            _ => 0,
-        }
-    }
+    pub fn cur_mut(&mut self) -> &mut String { &mut self.fields[self.focus] }
+    pub fn max_len(&self) -> usize { if self.focus == 0 { 12 } else { 6 } }
 }
 
 // ── Countdown alert state ─────────────────────────────────────────────────────
@@ -317,4 +303,5 @@ pub enum Modal {
     Help,
     Session(SessionDlg),
     SessionCreate(SessionCreateDlg),
+    SessionSchedule(SessionScheduleDlg),
 }

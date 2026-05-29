@@ -5,10 +5,9 @@ use crate::app::{App, Focus};
 use crate::dialogs::{
     CiDlg, ConfirmDlg, ConfirmKind, ExportDlg, Modal, MsgDlg,
     NetDlg, NdMode, ModePick, OperatorDlg, SessionDlg, SessionCreateDlg,
-    SessionCreateMode, ThemePickerDlg,
+    SessionCreateMode, SessionScheduleDlg, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,
-    SCF_MODE, SCF_DATE, SCF_TIME,
 };
 use crate::models::{CheckIn, Net, Session, DIGITAL_MODES};
 use crate::persistence::{home_dir, new_id, save_data, utc_now};
@@ -24,6 +23,7 @@ pub fn on_key(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
         Modal::Export(_)       => { on_export_dlg(app, key);       return true; }
         Modal::Session(_)      => { on_session_dlg(app, key);      return true; }
         Modal::SessionCreate(_)=> { on_session_create_dlg(app, key); return true; }
+        Modal::SessionSchedule(_)=> { on_session_schedule_dlg(app, key); return true; }
         _ => {}
     }
 
@@ -623,53 +623,16 @@ pub fn on_session_create_dlg(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Esc => { app.modal = Modal::None; }
 
-        KeyCode::Up => {
+        KeyCode::Up | KeyCode::Down => {
             let Modal::SessionCreate(ref mut d) = app.modal else { return };
-            if d.focus > 0 { d.focus -= 1; }
+            d.mode = match d.mode {
+                SessionCreateMode::CreateNow => SessionCreateMode::Schedule,
+                SessionCreateMode::Schedule => SessionCreateMode::CreateNow,
+            };
         }
 
-        KeyCode::Down | KeyCode::Enter | KeyCode::Tab => {
-            let Modal::SessionCreate(ref mut d) = app.modal else { return };
-            let max = d.max_focus();
-            if d.focus < max && key != KeyCode::Enter {
-                d.focus += 1;
-            } else if d.focus == max || (d.focus == SCF_MODE && d.mode == SessionCreateMode::CreateNow) {
-                commit_session_create(app);
-            } else {
-                d.focus += 1;
-            }
-        }
-
-        KeyCode::Char(' ') => {
-            let Modal::SessionCreate(ref mut d) = app.modal else { return };
-            if d.focus == SCF_MODE {
-                d.mode = match d.mode {
-                    SessionCreateMode::CreateNow => SessionCreateMode::Schedule,
-                    SessionCreateMode::Schedule => SessionCreateMode::CreateNow,
-                };
-            } else {
-                let max = d.max_len();
-                if let Some(f) = d.cur_mut() {
-                    if f.len() < max { f.push(' '); }
-                }
-            }
-        }
-
-        KeyCode::Backspace => {
-            let Modal::SessionCreate(ref mut d) = app.modal else { return };
-            if let Some(f) = d.cur_mut() { f.pop(); }
-        }
-
-        KeyCode::Delete => {
-            let Modal::SessionCreate(ref mut d) = app.modal else { return };
-            if let Some(f) = d.cur_mut() { f.clear(); }
-        }
-
-        KeyCode::Char(c) => {
-            let Modal::SessionCreate(ref mut d) = app.modal else { return };
-            if d.focus == SCF_MODE { return; }
-            let max = d.max_len();
-            if let Some(f) = d.cur_mut() { if f.len() < max { f.push(c); } }
+        KeyCode::Enter => {
+            commit_session_create(app);
         }
 
         _ => {}
@@ -680,27 +643,78 @@ pub fn commit_session_create(app: &mut App) {
     let Modal::SessionCreate(ref d) = app.modal else { return };
     let Some(ni) = app.ni() else { app.modal = Modal::None; return };
 
-    let ses = match d.mode {
-        SessionCreateMode::CreateNow => Session::new_today(),
-        SessionCreateMode::Schedule => {
-            let date = d.date.trim().to_string();
-            let time = d.time.trim().to_string();
-            if date.is_empty() || time.is_empty() {
-                if let Modal::SessionCreate(ref mut d) = app.modal {
-                    if date.is_empty() { d.focus = SCF_DATE; } else { d.focus = SCF_TIME; }
-                }
-                return;
-            }
-            Session {
-                id: new_id(),
-                date: date.clone(),
-                net_time: time.clone(),
-                checkins: vec![],
-                scheduled_time: Some(format!("{} {}", date, time)),
-            }
+    match d.mode {
+        SessionCreateMode::CreateNow => {
+            let ses = Session::new_today();
+            app.data.nets[ni].sessions.push(ses);
+            let last = app.data.nets[ni].sessions.len() - 1;
+            app.ses_ls.select(Some(last));
+            app.log_ls.select(None);
+            app.focus = Focus::Sessions;
+            save_data(&app.data);
+            app.modal = Modal::None;
         }
-    };
+        SessionCreateMode::Schedule => {
+            app.modal = Modal::SessionSchedule(SessionScheduleDlg::new(ni));
+        }
+    }
+}
 
+// ── Session schedule dialog (date/time entry) ─────────────────────────────────
+pub fn on_session_schedule_dlg(app: &mut App, key: KeyCode) {
+    if !matches!(app.modal, Modal::SessionSchedule(_)) { return; }
+    match key {
+        KeyCode::Esc => { app.modal = Modal::None; }
+
+        KeyCode::Enter | KeyCode::Down => {
+            let Modal::SessionSchedule(ref mut d) = app.modal else { return };
+            if d.focus == 0 { d.focus = 1; }
+            else { commit_session_schedule(app); }
+        }
+
+        KeyCode::Up => {
+            let Modal::SessionSchedule(ref mut d) = app.modal else { return };
+            if d.focus > 0 { d.focus -= 1; }
+        }
+
+        KeyCode::Backspace => {
+            let Modal::SessionSchedule(ref mut d) = app.modal else { return };
+            d.cur_mut().pop();
+        }
+
+        KeyCode::Delete => {
+            let Modal::SessionSchedule(ref mut d) = app.modal else { return };
+            d.cur_mut().clear();
+        }
+
+        KeyCode::Char(c) => {
+            let Modal::SessionSchedule(ref mut d) = app.modal else { return };
+            let max = d.max_len();
+            if d.cur_mut().len() < max { d.cur_mut().push(c); }
+        }
+
+        _ => {}
+    }
+}
+
+pub fn commit_session_schedule(app: &mut App) {
+    let Modal::SessionSchedule(ref d) = app.modal else { return };
+    let date = d.fields[0].trim().to_string();
+    let time = d.fields[1].trim().to_string();
+    if date.is_empty() || time.is_empty() {
+        if let Modal::SessionSchedule(ref mut d) = app.modal {
+            if date.is_empty() { d.focus = 0; } else { d.focus = 1; }
+        }
+        return;
+    }
+    let ni = d.ni;
+    let ses = Session {
+        id: new_id(),
+        date: date.clone(),
+        net_time: time.clone(),
+        checkins: vec![],
+        scheduled_time: Some(format!("{} {}", date, time)),
+    };
     app.data.nets[ni].sessions.push(ses);
     let last = app.data.nets[ni].sessions.len() - 1;
     app.ses_ls.select(Some(last));
