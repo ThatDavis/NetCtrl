@@ -880,12 +880,15 @@ fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) 
     let start_y = area.y + area.height.saturating_sub(digit_h) / 2;
 
     let mut x = start_x;
+    let mut is_first = true;
     for c in text.chars() {
         if let Some(pattern) = big_digit_pattern(c) {
             let w = char_width(c);
+            let render_x = if is_first { x + 1 } else { x };
+            is_first = false;
             for (row_idx, row_str) in pattern.iter().enumerate() {
                 for (col_idx, ch) in row_str.chars().enumerate() {
-                    let cx = x + col_idx as u16;
+                    let cx = render_x + col_idx as u16;
                     let cy = start_y + row_idx as u16;
                     if cx < area.x + area.width && cy < area.y + area.height && ch != ' ' {
                         let cell = f.buffer_mut().get_mut(cx, cy);
