@@ -247,6 +247,47 @@ impl SessionDlg {
     pub fn max_len(&self) -> usize { if self.focus == 0 { 12 } else { 6 } }
 }
 
+// ── Session creation dialog ───────────────────────────────────────────────────
+#[derive(Debug,PartialEq,Clone,Copy)]
+pub enum SessionCreateMode { CreateNow, Schedule }
+
+#[derive(Debug)]
+pub struct SessionCreateDlg {
+    pub mode: SessionCreateMode,
+}
+impl SessionCreateDlg {
+    pub fn new() -> Self {
+        Self { mode: SessionCreateMode::CreateNow }
+    }
+}
+
+// ── Session schedule dialog (date/time entry) ─────────────────────────────────
+#[derive(Debug)]
+pub struct SessionScheduleDlg {
+    pub fields: [String; 2],   // 0 = date, 1 = net_time
+    pub focus:  usize,
+    pub ni:     usize,         // net index
+}
+impl SessionScheduleDlg {
+    pub fn new(ni: usize) -> Self {
+        let now = chrono::Local::now();
+        Self {
+            fields: [now.format("%Y-%m-%d").to_string(), now.format("%H:%M").to_string()],
+            focus: 0, ni,
+        }
+    }
+    pub fn cur_mut(&mut self) -> &mut String { &mut self.fields[self.focus] }
+    pub fn max_len(&self) -> usize { if self.focus == 0 { 12 } else { 6 } }
+}
+
+// ── Countdown alert state ─────────────────────────────────────────────────────
+#[derive(Debug,Clone)]
+pub struct CountdownState {
+    pub target: chrono::DateTime<chrono::Local>,
+    pub ni:     usize,
+    pub si:     usize,
+}
+
 #[derive(Debug)]
 pub enum Modal {
     None,
@@ -261,4 +302,6 @@ pub enum Modal {
     QuitConfirm,
     Help,
     Session(SessionDlg),
+    SessionCreate(SessionCreateDlg),
+    SessionSchedule(SessionScheduleDlg),
 }

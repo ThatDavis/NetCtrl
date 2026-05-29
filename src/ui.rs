@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
@@ -9,7 +9,7 @@ use ratatui::{
 use crate::app::{App, Focus};
 use crate::dialogs::{
     CiDlg, ExportDlg, Modal, ModePick, NetDlg, NdMode,
-    OperatorDlg, SessionDlg, ThemePickerDlg,
+    OperatorDlg, SessionCreateDlg, SessionCreateMode, SessionDlg, SessionScheduleDlg, ThemePickerDlg,
     NF_NAME, NF_CLUB, NF_FREQ, NF_OFFSET, NF_PL, NF_TOGGLE, NF_MODE, NF_NOTES,
     OF_CALL, OF_NAME,
 };
@@ -38,6 +38,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     draw_body(f, vlay[1], app, t);
     draw_status(f, vlay[2], t);
     draw_modal(f, area, app, t);
+    draw_countdown_overlay(f, area, app, t);
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
@@ -383,6 +384,8 @@ fn draw_modal(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         Modal::QuitConfirm    => draw_quit_confirm(f, area, t),
         Modal::Help           => draw_help(f, area, t),
         Modal::Session(d)     => draw_session_dlg(f, area, d, t),
+        Modal::SessionCreate(d) => draw_session_create_dlg(f, area, d, t),
+        Modal::SessionSchedule(d) => draw_session_schedule_dlg(f, area, d, t),
     }
 }
 
@@ -747,6 +750,222 @@ fn draw_session_dlg(f: &mut Frame, area: Rect, d: &SessionDlg, t: &Theme) {
     f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
 }
 
+fn draw_session_create_dlg(f: &mut Frame, area: Rect, d: &SessionCreateDlg, t: &Theme) {
+    let r = centered(44, 10, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+        .title(Span::styled(" CREATE SESSION ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+
+    // Vertical layout: options centred vertically, hint pinned to bottom
+    let hint_h = 1u16;
+    let options_h = 3u16;      // option + gap + option
+    let available = inner.height.saturating_sub(options_h + hint_h);
+    let top_pad = available / 2;
+
+    let hint_area = Rect {
+        x: inner.x,
+        y: inner.y + inner.height - hint_h,
+        width: inner.width,
+        height: hint_h,
+    };
+
+    // Render each option as a full-width row with centred text
+    let options = [
+        ("Create Now", d.mode == SessionCreateMode::CreateNow),
+        ("Schedule for Later", d.mode == SessionCreateMode::Schedule),
+    ];
+    for (i, (label, is_selected)) in options.iter().enumerate() {
+        let y = inner.y + top_pad + (i as u16) * 2;
+        let row_area = Rect {
+            x: inner.x,
+            y,
+            width: inner.width,
+            height: 1,
+        };
+        let prefix = if *is_selected { "▶ " } else { "  " };
+        let text = format!("{}{}", prefix, label);
+        let style = if *is_selected { t.sel() } else { t.normal() };
+
+        // Fill the entire row so the background reaches both borders
+        for col in row_area.x..row_area.x + row_area.width {
+            let cell = f.buffer_mut().get_mut(col, row_area.y);
+            cell.set_symbol(" ");
+            cell.set_style(style);
+        }
+        // Draw centred text on top
+        f.render_widget(
+            Paragraph::new(Span::styled(text, style)).alignment(Alignment::Center),
+            row_area,
+        );
+    }
+
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            "[↑↓] select  [ENTER] confirm  [ESC] cancel", t.dim())),
+        hint_area,
+    );
+}
+
+fn draw_session_schedule_dlg(f: &mut Frame, area: Rect, d: &SessionScheduleDlg, t: &Theme) {
+    let r = centered(48, 12, area);
+    f.render_widget(Clear, r);
+    let blk = Block::default()
+        .title(Span::styled(" SCHEDULE SESSION ", t.bold()))
+        .borders(Borders::ALL).border_style(t.bold())
+        .style(t.normal());
+    let inner = blk.inner(r);
+    f.render_widget(blk, r);
+
+    let labels = ["Date (YYYY-MM-DD)", "Time (HH:MM)"];
+    let mut lines: Vec<Line> = vec![Line::from("")];
+    for (i, lbl) in labels.iter().enumerate() {
+        lines.push(Line::from(Span::styled(format!("{}:", lbl), t.cyan_s())));
+        let cur = if d.focus == i { "_" } else { "" };
+        lines.push(Line::from(Span::styled(
+            format!(" {}{}", d.fields[i], cur),
+            if d.focus == i { t.sel() } else { t.normal() },
+        )));
+        lines.push(Line::from(""));
+    }
+    lines.push(Line::from(Span::styled(
+        "[↑↓/ENTER] navigate  [ENTER] confirm  [ESC] cancel", t.dim())));
+    f.render_widget(Paragraph::new(lines).style(t.normal()), inner);
+}
+
+// ── Big digit patterns (4 wide × 5 tall) ──────────────────────────────────────
+const BIG_0: &[&str] = &["████", "█  █", "█  █", "█  █", "████"];
+const BIG_1: &[&str] = &["   █", "  ██", "   █", "   █", "  ███"];
+const BIG_2: &[&str] = &["████", "   █", "████", "█   ", "████"];
+const BIG_3: &[&str] = &["████", "   █", "████", "   █", "████"];
+const BIG_4: &[&str] = &["█  █", "█  █", "████", "   █", "   █"];
+const BIG_5: &[&str] = &["████", "█   ", "████", "   █", "████"];
+const BIG_6: &[&str] = &["████", "█   ", "████", "█  █", "████"];
+const BIG_7: &[&str] = &["████", "   █", "  █ ", " █  ", " █  "];
+const BIG_8: &[&str] = &["████", "█  █", "████", "█  █", "████"];
+const BIG_9: &[&str] = &["████", "█  █", "████", "   █", "████"];
+const BIG_COLON: &[&str] = &[" ", "▓", " ", "▓", " "];
+
+fn big_digit_pattern(c: char) -> Option<&'static [&'static str]> {
+    match c {
+        '0' => Some(BIG_0), '1' => Some(BIG_1), '2' => Some(BIG_2),
+        '3' => Some(BIG_3), '4' => Some(BIG_4), '5' => Some(BIG_5),
+        '6' => Some(BIG_6), '7' => Some(BIG_7), '8' => Some(BIG_8),
+        '9' => Some(BIG_9), ':' => Some(BIG_COLON), ' ' => Some(&[" ", " ", " ", " ", " "]),
+        _ => None,
+    }
+}
+
+fn char_width(c: char) -> u16 {
+    match c {
+        ':' => 1,
+        ' ' => 1,
+        _ => 4,
+    }
+}
+
+/// Draw a string of big digits into `area`, preserving existing backgrounds.
+fn draw_big_text(f: &mut Frame, area: Rect, text: &str, style: Style, gap: u16) {
+    let digit_h = 5u16;
+
+    let total_w: u16 = text.chars()
+        .map(char_width)
+        .sum::<u16>()
+        .saturating_add((text.chars().count().saturating_sub(1) as u16) * gap);
+
+    let start_x = area.x + (area.width.saturating_sub(total_w) / 2).saturating_sub(2);
+    let start_y = area.y + area.height.saturating_sub(digit_h) / 2;
+
+    let mut x = start_x;
+    let mut is_first = true;
+    for c in text.chars() {
+        if let Some(pattern) = big_digit_pattern(c) {
+            let w = char_width(c);
+            let render_x = if is_first { x + 1 } else { x };
+            is_first = false;
+            for (row_idx, row_str) in pattern.iter().enumerate() {
+                for (col_idx, ch) in row_str.chars().enumerate() {
+                    let cx = render_x + col_idx as u16;
+                    let cy = start_y + row_idx as u16;
+                    if cx < area.x + area.width && cy < area.y + area.height && ch != ' ' {
+                        let cell = f.buffer_mut().get_mut(cx, cy);
+                        let existing_bg = cell.style().bg.unwrap_or(style.bg.unwrap_or(Color::Reset));
+                        cell.set_symbol(&ch.to_string());
+                        cell.set_style(Style::default().fg(style.fg.unwrap_or(Color::Reset)).bg(existing_bg).add_modifier(Modifier::BOLD));
+                    }
+                }
+            }
+            x += w + gap;
+        }
+    }
+}
+
+fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
+    let Some(ref cd) = app.countdown else { return };
+    // Only show when no modal is open (don't obstruct dialogs)
+    if !matches!(app.modal, Modal::None) { return };
+
+    let now = chrono::Local::now();
+    let remaining = cd.target.signed_duration_since(now);
+    let secs = remaining.num_seconds().max(0);
+    let mins = secs / 60;
+    let secs_rem = secs % 60;
+    let time_str = format!("{} :{:02}", mins, secs_rem);
+
+    let w = 32u16;
+    let h = 9u16;
+    let r = centered(w, h, area);
+
+    // ── Solid header bar (flush with top) ──
+    let hdr_rect = Rect { x: r.x, y: r.y, width: r.width, height: 1 };
+    for col in hdr_rect.x..hdr_rect.x + hdr_rect.width {
+        let cell = f.buffer_mut().get_mut(col, hdr_rect.y);
+        cell.set_symbol(" ");
+        cell.set_style(Style::default().bg(t.accent()));
+    }
+    f.render_widget(
+        Paragraph::new(Span::styled("ALERT", Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center),
+        hdr_rect,
+    );
+
+    // ── Solid footer bar (flush with bottom) ──
+    let ftr_rect = Rect { x: r.x, y: r.y + r.height - 1, width: r.width, height: 1 };
+    for col in ftr_rect.x..ftr_rect.x + ftr_rect.width {
+        let cell = f.buffer_mut().get_mut(col, ftr_rect.y);
+        cell.set_symbol(" ");
+        cell.set_style(Style::default().bg(t.accent()));
+    }
+    f.render_widget(
+        Paragraph::new(Span::styled("NET STARTING", Style::default().fg(t.bg()).bg(t.accent()).add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center),
+        ftr_rect,
+    );
+
+    // ── Middle area: solid dark background (no stripes) ──
+    for row in 1..(r.height - 1) {
+        for col in 0..r.width {
+            let cell = f.buffer_mut().get_mut(r.x + col, r.y + row);
+            cell.set_symbol(" ");
+            cell.set_style(Style::default().bg(t.bg()));
+        }
+    }
+
+    // ── Big digits ──
+    let time_area = Rect {
+        x: r.x,
+        y: r.y + 1,
+        width: r.width,
+        height: r.height - 2,
+    };
+    let digit_fg = if secs <= 60 { t.amber() } else { t.fg() };
+    let digit_style = Style::default().fg(digit_fg).add_modifier(Modifier::BOLD);
+    draw_big_text(f, time_area, &time_str, digit_style, 2);
+}
+
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
     let dw = 62u16.min(area.width);
     let dh = 36u16.min(area.height);
@@ -782,7 +1001,7 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
         entry("d",               "Delete selected net"),
         blank(),
         section("SESSIONS"),
-        entry("n",               "New session for today"),
+        entry("n",               "Create or schedule new session"),
         entry("e",               "Edit session date / time"),
         entry("d",               "Delete selected session"),
         entry("Ctrl+↑ / Ctrl+↓", "Resize sessions pane"),

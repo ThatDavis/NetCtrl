@@ -39,6 +39,9 @@ pub struct Session {
     pub date:     String,
     pub net_time: String,
     #[serde(default)] pub checkins: Vec<CheckIn>,
+    /// If set, this session is scheduled for a future time.
+    /// Format: "YYYY-MM-DD HH:MM" (local time).
+    #[serde(default)] pub scheduled_time: Option<String>,
 }
 
 impl Session {
@@ -48,11 +51,16 @@ impl Session {
             date:     chrono::Local::now().format("%Y-%m-%d").to_string(),
             net_time: chrono::Local::now().format("%H:%M").to_string(),
             checkins: vec![],
+            scheduled_time: None,
         }
     }
     pub fn label(&self) -> String {
-        let cnt = self.checkins.len();
-        format!("{} {:>5}  ({} check-in{})", self.date, self.net_time, cnt, if cnt==1{""} else {"s"})
+        if self.scheduled_time.is_some() {
+            format!("{} {:>5}  [SCHEDULED]", self.date, self.net_time)
+        } else {
+            let cnt = self.checkins.len();
+            format!("{} {:>5}  ({} check-in{})", self.date, self.net_time, cnt, if cnt==1{""} else {"s"})
+        }
     }
 }
 
@@ -91,6 +99,7 @@ impl Net {
                 date,
                 net_time,
                 checkins: std::mem::take(&mut self.checkins),
+                scheduled_time: None,
             });
         }
     }
