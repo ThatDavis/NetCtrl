@@ -46,19 +46,7 @@
 
 ## Active Feature
 
-**Issue:** #1 — Add scheduled net sessions with countdown alert timer  
-**Branch:** `feature/1-add-scheduled-net-sessions-with-countdown-alert-timer`
-
-### Sub-tasks
-- [x] Add `scheduled_time` field to `Session` model with serde default
-- [x] Create `SessionCreateDlg` modal with "Create Now" / "Schedule for Later" options
-- [x] Wire `n` key in Sessions/Log focus to open `SessionCreateDlg` instead of immediate creation
-- [x] Implement datetime input handling in the modal
-- [x] Add scheduled session display indicator in session list
-- [x] Implement countdown timer logic (check every tick for sessions within 5 minutes)
-- [x] Design and render countdown alert overlay with diagonal stripes
-- [x] Auto-open session and launch add-checkin dialog when countdown reaches zero
-- [x] Run tests and verify acceptance criteria
+*No active feature. Run `/dev:start-feature` to begin.*
 
 
 ## Completed Features
@@ -69,6 +57,7 @@
 - FCC lookup integration (Milestone 1)
 - Theme system (Milestone 1)
 - Export to text (Milestone 1)
+- Scheduled net sessions with countdown alert timer (Milestone 2, Issue #1)
 
 ## Observations
 
