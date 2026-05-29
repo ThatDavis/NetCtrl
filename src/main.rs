@@ -81,7 +81,7 @@ fn update_countdown(app: &mut App) {
                 if let Ok(ndt) = chrono::NaiveDateTime::parse_from_str(st, "%Y-%m-%d %H:%M") {
                     if let Some(dt) = chrono::Local.from_local_datetime(&ndt).single() {
                         let diff = dt.signed_duration_since(now);
-                        if diff.num_seconds() > 0 && diff.num_seconds() <= 5 * 60 {
+                        if diff.num_milliseconds() > 0 && diff.num_seconds() <= 5 * 60 {
                             if let Some((curr_target, _, _)) = nearest {
                                 if dt < curr_target {
                                     nearest = Some((dt, ni, si));
