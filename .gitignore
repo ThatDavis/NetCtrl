@@ -17,6 +17,7 @@
 AGENTS.md
 CLAUDE.md
 CURSOR.md
+PLAN.md
 .agent/
 .agents/
 .aider/
@@ -26,3 +27,4 @@ CURSOR.md
 .kimi/
 .opencode/
 .windsurf/
+docs/
