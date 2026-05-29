@@ -959,7 +959,7 @@ fn draw_countdown_overlay(f: &mut Frame, area: Rect, app: &App, t: &Theme) {
         height: r.height - 2,
     };
     let digit_style = Style::default().fg(t.fg()).add_modifier(Modifier::BOLD);
-    draw_big_text(f, time_area, &time_str, digit_style, 1);
+    draw_big_text(f, time_area, &time_str, digit_style, 2);
 }
 
 fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
