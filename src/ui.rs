@@ -570,7 +570,12 @@ fn draw_ci_dlg(f: &mut Frame, area: Rect, d: &CiDlg, t: &Theme) {
     let r  = centered(62, dh, area);
     f.render_widget(Clear, r);
 
-    let title = if d.fcc_pending { " ADD CHECK-IN  [Searching…] " } else { " ADD CHECK-IN " };
+    let title = match (d.edit_ci.is_some(), d.fcc_pending) {
+        (true,  true)  => " EDIT CHECK-IN  [Searching…] ",
+        (true,  false) => " EDIT CHECK-IN ",
+        (false, true)  => " ADD CHECK-IN  [Searching…] ",
+        (false, false) => " ADD CHECK-IN ",
+    };
     let title_style = if d.fcc_pending { t.amber_s() } else { t.bold() };
     let blk = Block::default()
         .title(Span::styled(title, title_style))
@@ -1008,6 +1013,7 @@ fn draw_help(f: &mut Frame, area: Rect, t: &Theme) {
         blank(),
         section("CHECK-INS"),
         entry("c",               "Add check-in to active session"),
+        entry("e",               "Edit selected check-in"),
         entry("d",               "Delete selected check-in"),
         entry("Tab",             "Autocomplete callsign / search"),
         blank(),

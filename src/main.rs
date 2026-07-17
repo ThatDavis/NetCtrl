@@ -5,7 +5,7 @@
 //   Tab      Switch focus Nets <-> Log
 //   ↑ ↓      Navigate lists
 //   Enter    Select / confirm
-//   n        New net        e  Edit net
+//   n        New net        e  Edit net / session / check-in (context)
 //   c        Add check-in   d  Delete
 //   x        Export log     p  Edit operator profile
 //   Ctrl+Q   Quit

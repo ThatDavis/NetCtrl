@@ -21,6 +21,7 @@ A terminal TUI for logging amateur radio net check-ins. Built in Rust with [Rata
 - **Multi-session logging** - each net holds multiple dated sessions; browse and manage them independently
 - **Digital net support** - flag a net as digital and select from 20 common modes (FT8, FT4, JS8Call, Winlink, DMR, D-STAR, and more), with a free-text notes field
 - **Check-in logging** - log callsign, operator name, and remarks with automatic UTC timestamps
+- **Edit check-ins** - correct a callsign, name, or remarks in place with `e`; the original UTC timestamp is preserved
 - **Callsign autocomplete** - remembers callsign/name pairs from previous check-ins and suggests matches as you type
 - **Callsign lookup** - automatically queries [callook.info](https://callook.info) in the background and fills the operator name when a result is found
 - **Operator profile** - set your callsign and name on first launch; shown in the header and included in exports
@@ -83,7 +84,7 @@ NETS  →(Enter)→  SESSIONS  →(Enter)→  LOG
 | `Enter` | Open selected item |
 | `Esc` | Go back one level |
 | `n` | Add new net (Nets focus) / new session for today (Sessions or Log focus) |
-| `e` | Edit selected net |
+| `e` | Edit selected net / session date-time (Sessions focus) / check-in (Log focus) |
 | `d` | Delete selected net, session, or check-in |
 | `c` | Add a check-in to the active session |
 | `x` | Export active session log to a text file |
