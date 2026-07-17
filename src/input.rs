@@ -171,15 +171,23 @@ pub fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
             }
         }
 
-        // [e] — edit net (Nets focus) or edit session date/time (Sessions/Log focus)
+        // [e] — edit net (Nets focus), edit session date/time (Sessions focus),
+        // or edit selected check-in (Log focus)
         KeyCode::Char('e') => match app.focus {
             Focus::Nets => {
                 if let Some(n) = app.net() { app.modal = Modal::Net(NetDlg::new_edit(n)); }
             }
-            Focus::Sessions | Focus::Log => {
+            Focus::Sessions => {
                 if let (Some(ni), Some(si)) = (app.ni(), app.si()) {
                     let ses = &app.data.nets[ni].sessions[si];
                     app.modal = Modal::Session(SessionDlg::new(ni, si, &ses.date, &ses.net_time));
+                }
+            }
+            Focus::Log => {
+                if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci()) {
+                    if let Some(c) = app.data.nets[ni].sessions[si].checkins.get(ci) {
+                        app.modal = Modal::Ci(CiDlg::new_edit(c, ci));
+                    }
                 }
             }
         }
@@ -537,17 +545,36 @@ pub fn commit_ci(app: &mut App) {
         if let Modal::Ci(ref mut d)=app.modal { d.focus=0; }
         return;
     }
-    let ci = CheckIn {
-        id: new_id(), callsign: cs,
-        name:     dlg.name.trim().into(),
-        nickname: dlg.nickname.trim().into(),
-        remarks:  dlg.remarks.trim().into(),
-        time: utc_now(),
-    };
-    if let Some(ses) = app.active_session_mut() {
-        ses.checkins.push(ci);
-        let last = ses.checkins.len()-1;
-        app.log_ls.select(Some(last));
+    let name     = dlg.name.trim().to_string();
+    let nickname = dlg.nickname.trim().to_string();
+    let remarks  = dlg.remarks.trim().to_string();
+    match dlg.edit_ci {
+        Some(idx) => {
+            // Edit in place: preserve the original id and UTC timestamp.
+            if let Some(ses) = app.active_session_mut() {
+                if let Some(c) = ses.checkins.get_mut(idx) {
+                    c.callsign = cs;
+                    c.name     = name;
+                    c.nickname = nickname;
+                    c.remarks  = remarks;
+                }
+            }
+            app.log_ls.select(Some(idx));
+        }
+        None => {
+            let ci = CheckIn {
+                id: new_id(), callsign: cs,
+                name,
+                nickname,
+                remarks,
+                time: utc_now(),
+            };
+            if let Some(ses) = app.active_session_mut() {
+                ses.checkins.push(ci);
+                let last = ses.checkins.len()-1;
+                app.log_ls.select(Some(last));
+            }
+        }
     }
     // Remember this callsign/name pair
     let (cs2, nm2, nk2) = {

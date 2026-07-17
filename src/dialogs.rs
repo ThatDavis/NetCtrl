@@ -1,6 +1,6 @@
 use std::sync::mpsc;
 
-use crate::models::{KnownOp, Net};
+use crate::models::{CheckIn, KnownOp, Net};
 use crate::theme::Theme;
 
 // ── App screen ────────────────────────────────────────────────────────────────
@@ -105,6 +105,8 @@ pub struct CiDlg {
     /// Channel for FCC lookup results.
     pub fcc_rx:       Option<mpsc::Receiver<FccResult>>,
     pub fcc_pending:  bool,
+    /// Index of the check-in being edited within the active session; None = adding.
+    pub edit_ci:      Option<usize>,
 }
 impl CiDlg {
     pub fn new() -> Self {
@@ -114,6 +116,17 @@ impl CiDlg {
             focus: 0,
             completions: vec![], comp_labels: vec![], comp_sel: None,
             fcc_rx: None, fcc_pending: false,
+            edit_ci: None,
+        }
+    }
+    pub fn new_edit(c: &CheckIn, idx: usize) -> Self {
+        Self {
+            callsign: c.callsign.clone(), name: c.name.clone(),
+            nickname: c.nickname.clone(), remarks: c.remarks.clone(),
+            focus: 0,
+            completions: vec![], comp_labels: vec![], comp_sel: None,
+            fcc_rx: None, fcc_pending: false,
+            edit_ci: Some(idx),
         }
     }
     pub fn cur_mut(&mut self) -> &mut String {
