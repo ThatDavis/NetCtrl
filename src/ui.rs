@@ -161,8 +161,8 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App, t: &Theme) {
         }
         return;
     }
-    let _is_dig = app.net().map_or(false,|n|n.digital);
-    let _has_club= app.net().map_or(false,|n|!n.club.is_empty());
+    let _is_dig = app.net().is_some_and(|n|n.digital);
+    let _has_club= app.net().is_some_and(|n|!n.club.is_empty());
     // info height: 5 content rows (freq, pl, mode/voice, name) + 1 if club + 2 (borders)
     // digital MODE row replaces VOICE NET row — same count either way
     let info_h = 5u16

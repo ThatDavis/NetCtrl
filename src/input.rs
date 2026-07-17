@@ -184,11 +184,10 @@ pub fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
                 }
             }
             Focus::Log => {
-                if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci()) {
-                    if let Some(c) = app.data.nets[ni].sessions[si].checkins.get(ci) {
+                if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci())
+                    && let Some(c) = app.data.nets[ni].sessions[si].checkins.get(ci) {
                         app.modal = Modal::Ci(CiDlg::new_edit(c, ci));
                     }
-                }
             }
         }
 
@@ -216,23 +215,22 @@ pub fn on_main(app: &mut App, key: KeyCode, mods: KeyModifiers) -> bool {
             Focus::Nets => {
                 if let Some(n) = app.net() {
                     let msg = format!("Delete net '{}'?", n.name);
-                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelNet, msg});
+                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::Net, msg});
                 }
             }
             Focus::Sessions => {
                 if let (Some(ni), Some(si)) = (app.ni(), app.si()) {
                     let lbl = app.data.nets[ni].sessions[si].label();
                     let msg = format!("Delete session {}?", lbl);
-                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelSession, msg});
+                    app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::Session, msg});
                 }
             }
             Focus::Log => {
-                if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci()) {
-                    if let Some(c) = app.data.nets[ni].sessions[si].checkins.get(ci) {
+                if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci())
+                    && let Some(c) = app.data.nets[ni].sessions[si].checkins.get(ci) {
                         let msg = format!("Remove {} from log?", c.callsign);
-                        app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::DelCi, msg});
+                        app.modal = Modal::Confirm(ConfirmDlg{kind:ConfirmKind::Ci, msg});
                     }
-                }
             }
         }
 
@@ -364,9 +362,8 @@ pub fn on_net_dlg(app: &mut App, key: KeyCode) {
                 if !d.digital && d.focus > NF_TOGGLE { d.focus = NF_TOGGLE; }
             } else if d.focus != NF_MODE {
                 let max = d.max_len();
-                if let Some(f) = d.cur_field_mut() {
-                    if f.len() < max { f.push(' '); }
-                }
+                if let Some(f) = d.cur_field_mut()
+                    && f.len() < max { f.push(' '); }
             }
         }
 
@@ -386,7 +383,7 @@ pub fn on_net_dlg(app: &mut App, key: KeyCode) {
             let max   = d.max_len();
             let focus = d.focus;
             let ch    = if focus == NF_NAME { c.to_ascii_uppercase() } else { c };
-            if let Some(f) = d.cur_field_mut() { if f.len() < max { f.push(ch); } }
+            if let Some(f) = d.cur_field_mut() && f.len() < max { f.push(ch); }
         }
 
         _ => {}
@@ -551,14 +548,13 @@ pub fn commit_ci(app: &mut App) {
     match dlg.edit_ci {
         Some(idx) => {
             // Edit in place: preserve the original id and UTC timestamp.
-            if let Some(ses) = app.active_session_mut() {
-                if let Some(c) = ses.checkins.get_mut(idx) {
+            if let Some(ses) = app.active_session_mut()
+                && let Some(c) = ses.checkins.get_mut(idx) {
                     c.callsign = cs;
                     c.name     = name;
                     c.nickname = nickname;
                     c.remarks  = remarks;
                 }
-            }
             app.log_ls.select(Some(idx));
         }
         None => {
@@ -794,7 +790,7 @@ pub fn on_confirm(app: &mut App, key: KeyCode) {
         KeyCode::Char('y')|KeyCode::Char('Y') => {
             let Modal::Confirm(ref dlg) = app.modal else { return };
             match dlg.kind {
-                ConfirmKind::DelNet => {
+                ConfirmKind::Net => {
                     if let Some(i) = app.ni() {
                         app.data.nets.remove(i);
                         let new = if app.data.nets.is_empty() { None }
@@ -805,7 +801,7 @@ pub fn on_confirm(app: &mut App, key: KeyCode) {
                         save_data(&app.data);
                     }
                 }
-                ConfirmKind::DelSession => {
+                ConfirmKind::Session => {
                     if let (Some(ni), Some(si)) = (app.ni(), app.si()) {
                         app.data.nets[ni].sessions.remove(si);
                         let len = app.data.nets[ni].sessions.len();
@@ -814,7 +810,7 @@ pub fn on_confirm(app: &mut App, key: KeyCode) {
                         save_data(&app.data);
                     }
                 }
-                ConfirmKind::DelCi => {
+                ConfirmKind::Ci => {
                     if let (Some(ni), Some(si), Some(ci)) = (app.ni(), app.si(), app.ci()) {
                         app.data.nets[ni].sessions[si].checkins.remove(ci);
                         let len = app.data.nets[ni].sessions[si].checkins.len();
@@ -891,9 +887,8 @@ pub fn on_export_dlg(app: &mut App, key: KeyCode) {
             if let Modal::Export(ref mut d) = app.modal { d.filename.clear(); }
         }
         KeyCode::Char(c) => {
-            if let Modal::Export(ref mut d) = app.modal {
-                if d.filename.len() < 80 { d.filename.push(c); }
-            }
+            if let Modal::Export(ref mut d) = app.modal
+                && d.filename.len() < 80 { d.filename.push(c); }
         }
         _ => {}
     }

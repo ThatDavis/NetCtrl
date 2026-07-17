@@ -54,8 +54,8 @@ fn update_countdown(app: &mut App) {
     let now = chrono::Local::now();
 
     // If a countdown is already active, check if it expired
-    if let Some(ref cd) = app.countdown {
-        if now >= cd.target {
+    if let Some(ref cd) = app.countdown
+        && now >= cd.target {
             // Timer expired — activate the session
             let ni = cd.ni;
             let si = cd.si;
@@ -70,16 +70,15 @@ fn update_countdown(app: &mut App) {
             app.modal = Modal::Ci(CiDlg::new());
             app.countdown = None;
         }
-    }
 
     // Always look for the nearest scheduled session within 5 minutes
     // (allows switching to a nearer session if one appears)
     let mut nearest: Option<(chrono::DateTime<chrono::Local>, usize, usize)> = None;
     for (ni, net) in app.data.nets.iter().enumerate() {
         for (si, ses) in net.sessions.iter().enumerate() {
-            if let Some(ref st) = ses.scheduled_time {
-                if let Ok(ndt) = chrono::NaiveDateTime::parse_from_str(st, "%Y-%m-%d %H:%M") {
-                    if let Some(dt) = chrono::Local.from_local_datetime(&ndt).single() {
+            if let Some(ref st) = ses.scheduled_time
+                && let Ok(ndt) = chrono::NaiveDateTime::parse_from_str(st, "%Y-%m-%d %H:%M")
+                    && let Some(dt) = chrono::Local.from_local_datetime(&ndt).single() {
                         let diff = dt.signed_duration_since(now);
                         if diff.num_milliseconds() > 0 && diff.num_seconds() <= 5 * 60 {
                             if let Some((curr_target, _, _)) = nearest {
@@ -91,8 +90,6 @@ fn update_countdown(app: &mut App) {
                             }
                         }
                     }
-                }
-            }
         }
     }
 
@@ -116,23 +113,19 @@ fn run_loop<B: ratatui::backend::Backend>(term: &mut Terminal<B>) -> io::Result<
     loop {
         term.draw(|f| ui(f, &mut app))?;
         let timeout = tick_rate.checked_sub(app.tick.elapsed()).unwrap_or_default();
-        if event::poll(timeout)? {
-            if let Event::Key(k) = event::read()? {
-                if k.kind == event::KeyEventKind::Press {
-                    if !on_key(&mut app, k.code, k.modifiers) { return Ok(()); }
-                }
-            }
-        }
+        if event::poll(timeout)?
+            && let Event::Key(k) = event::read()?
+                && k.kind == event::KeyEventKind::Press
+                    && !on_key(&mut app, k.code, k.modifiers) { return Ok(()); }
         if app.tick.elapsed() >= tick_rate {
             app.tick();
             app.tick = Instant::now();
             update_countdown(&mut app);
         }
         // Poll for FCC lookup results while check-in dialog is open
-        if let Modal::Ci(ref mut d) = app.modal {
-            if let Some(FccResult::Found(name)) = d.poll_fcc() {
+        if let Modal::Ci(ref mut d) = app.modal
+            && let Some(FccResult::Found(name)) = d.poll_fcc() {
                 d.name = name;  // always fill; lookup result wins
             }
-        }
     }
 }
