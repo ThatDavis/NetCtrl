@@ -12,14 +12,12 @@ pub fn data_path() -> PathBuf { home_dir().join(".netcontrol_data.json") }
 
 pub fn load_data() -> AppData {
     let p = data_path();
-    if p.exists() {
-        if let Ok(s) = std::fs::read_to_string(&p) {
-            if let Ok(mut d) = serde_json::from_str::<AppData>(&s) {
+    if p.exists()
+        && let Ok(s) = std::fs::read_to_string(&p)
+            && let Ok(mut d) = serde_json::from_str::<AppData>(&s) {
                 for net in &mut d.nets { net.migrate(); }
                 return d;
             }
-        }
-    }
     AppData::default()
 }
 

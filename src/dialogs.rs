@@ -216,7 +216,7 @@ impl CiDlg {
 pub struct ModePick { pub sel: usize, pub offset: usize }
 
 #[derive(Debug,PartialEq)]
-pub enum ConfirmKind { DelNet, DelSession, DelCi }
+pub enum ConfirmKind { Net, Session, Ci }
 #[derive(Debug)]
 pub struct ConfirmDlg { pub kind: ConfirmKind, pub msg: String }
 #[derive(Debug)]

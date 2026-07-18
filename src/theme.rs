@@ -34,15 +34,14 @@ use crate::persistence::home_dir;
 
 pub fn parse_hex_color(h: &str) -> Color {
     let h = h.trim_start_matches('#');
-    if h.len() == 6 {
-        if let (Ok(r), Ok(g), Ok(b)) = (
+    if h.len() == 6
+        && let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&h[0..2], 16),
             u8::from_str_radix(&h[2..4], 16),
             u8::from_str_radix(&h[4..6], 16),
         ) {
             return Color::Rgb(r, g, b);
         }
-    }
     Color::Reset
 }
 
@@ -230,20 +229,18 @@ pub fn load_theme_from_toml(path: &std::path::Path) -> Option<Theme> {
     for line in content.lines() {
         let line = line.trim();
         // Parse scheme name
-        if line.to_lowercase().starts_with("scheme") {
-            if let Some(val) = line.splitn(2, '=').nth(1) {
+        if line.to_lowercase().starts_with("scheme")
+            && let Some(val) = line.split_once('=').map(|x| x.1) {
                 name = val.trim().trim_matches('"').trim_matches('\'').to_string();
             }
-        }
         for (i, key) in ["base00","base01","base02","base03","base04","base05",
                           "base06","base07","base08","base09","base0a","base0b",
                           "base0c","base0d","base0e","base0f"].iter().enumerate() {
-            if line.to_lowercase().starts_with(key) {
-                if let Some(val) = line.splitn(2, '=').nth(1) {
+            if line.to_lowercase().starts_with(key)
+                && let Some(val) = line.split_once('=').map(|x| x.1) {
                     let v = val.trim().trim_matches('"').trim_matches('\'').to_string();
                     if !v.is_empty() && slots[i].is_empty() { slots[i] = v; }
                 }
-            }
         }
     }
     // Require at least base00 and base05
@@ -266,7 +263,7 @@ pub fn all_themes() -> Vec<Theme> {
     if let Ok(rd) = std::fs::read_dir(&theme_dir) {
         let mut extras: Vec<Theme> = rd
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |x| x == "toml"))
+            .filter(|e| e.path().extension().is_some_and(|x| x == "toml"))
             .filter_map(|e| load_theme_from_toml(&e.path()))
             .collect();
         extras.sort_by(|a,b| a.name.cmp(&b.name));
